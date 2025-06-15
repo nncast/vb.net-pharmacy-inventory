@@ -1,0 +1,4 @@
+C:\Users\Janelle Ann\onedrive\documents\visual studio 2012\Projects\PharmacyInventory\PharmacyInventory\bin\Debug\PharmacyInventory.exe.config
+C:\Users\Janelle Ann\onedrive\documents\visual studio 2012\Projects\PharmacyInventory\PharmacyInventory\obj\Debug\PharmacyInventory.exe
+C:\Users\Janelle Ann\onedrive\documents\visual studio 2012\Projects\PharmacyInventory\PharmacyInventory\obj\Debug\PharmacyInventory.xml
+C:\Users\Janelle Ann\onedrive\documents\visual studio 2012\Projects\PharmacyInventory\PharmacyInventory\obj\Debug\PharmacyInventory.pdb
