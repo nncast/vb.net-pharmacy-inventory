@@ -1,13 +1,11 @@
 # PharmacyInventory  
 (2024)
 
-**PharmacyInventory** is a desktop-based inventory management system developed in **VB.NET** for pharmacies and medical suppliers.  
-It enables real-time tracking of inventory levels, supply movement, and delivery logistics, including driver dispatch and delivery records.
+**PharmacyInventory** is a desktop-based inventory management system developed in **VB.NET** for pharmacies and medical suppliers. It enables real-time tracking of inventory levels, supply movement, and delivery logistics, including driver dispatch and delivery records.
 
 ## Features
 - Inventory management with stock in/out tracking
 - Delivery tracking and driver assignment
-- Item quantity monitoring and restock indicators
 - Windows Forms interface for ease of use
 - MySQL database integration
 
