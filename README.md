@@ -53,7 +53,7 @@
    git clone https://github.com/nncast/vb.net-pharmacy-inventory.git
    ```
 2. Start MySQL using XAMPP, WAMP, or another server stack.
-3. Import `sql/dbpharmacy.sql` with SQLYog or another MySQL client.
+3. Import `database/dbpharmacy.sql` with SQLYog or another MySQL client.
 4. Open `PharmacyInventory/PharmacyInventory.sln` in Visual Studio.
 5. Make sure the project targets .NET Framework 4.8.1 or later and that `MySql.Data.dll` is referenced.
 6. Build and run the project.
