@@ -1,4 +1,6 @@
-<h1 align="center">PharmacyInventory</h1>
+<p align="center">
+  <img src="assets/logo.png" alt="Pharmease Medical Store" width="320"/>
+</p>
 
 <p align="center">
   <img src="https://img.shields.io/badge/version-0.1.0-E5484D?style=flat-square" alt="version">
@@ -14,9 +16,18 @@
   <a href="https://github.com/nncast/vb.net-pharmacy-inventory/releases">All releases</a>
 </p>
 
+# PharmacyInventory
+
 **PharmacyInventory** is a desktop-based inventory management system developed in **VB.NET** for pharmacies and medical suppliers. It enables real-time tracking of inventory levels, supply movement, and delivery logistics, including driver dispatch and delivery records.
 
-> **Current version: v0.1.0** — first tagged release. See [Releases](https://github.com/nncast/vb.net-pharmacy-inventory/releases) for the project timeline.
+> **Current version: v0.1.0** — first tagged release. See [Releases](https://github.com/nncast/vb.net-pharmacy-inventory/releases) for the release notes.
+
+<p align="center">
+  <img src="assets/screenshots/home.png" width="400" alt="Home dashboard"/>
+  <img src="assets/screenshots/product.png" width="400" alt="Product management"/>
+  <img src="assets/screenshots/order.png" width="400" alt="Order form with cart"/>
+  <img src="assets/screenshots/delivery.png" width="400" alt="Delivery tracking"/>
+</p>
 
 ## Features
 
@@ -57,10 +68,6 @@
 4. Open `PharmacyInventory/PharmacyInventory.sln` in Visual Studio.
 5. Make sure the project targets .NET Framework 4.8.1 or later and that `MySql.Data.dll` is referenced.
 6. Build and run the project.
-
-## Developer
-
-Janelle Ann Castillo ([nncast](https://github.com/nncast))
 
 ---
 
