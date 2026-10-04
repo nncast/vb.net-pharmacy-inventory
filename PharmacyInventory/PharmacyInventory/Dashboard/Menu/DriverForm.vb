@@ -4,7 +4,7 @@
     Public driverid As Integer = Nothing
 
     Private Sub DriverForm_Load(sender As Object, e As EventArgs) Handles MyBase.Load
-        Connect("localhost", "dbpharmacy", "3306", "root", "")
+        Connect()
 
         fill()
 
@@ -18,11 +18,11 @@
 
         Dim query As String = "SELECT id, name, license FROM driver"
         If searchText <> "" Then
-            query &= " WHERE id LIKE '%" & searchText & "%' OR name LIKE '%" & searchText & "%' OR license LIKE '%" & searchText & "%'"
+            query &= " WHERE id LIKE @s OR name LIKE @s OR license LIKE @s"
         End If
         query &= " ORDER BY name ASC"
 
-        GetQuery(query, "driver")
+        GetQuery(query, "driver", P("@s", "%" & searchText & "%"))
         driverlist.Items.Clear()
 
         For i = 0 To ds.Tables("driver").Rows.Count - 1
@@ -83,21 +83,23 @@
 
         If adding Then
             If MsgBox("Are you sure you want to add a new driver?", MsgBoxStyle.Question + MsgBoxStyle.YesNo, "Confirm") = MsgBoxResult.Yes Then
-                SetQuery("INSERT INTO driver (name, license) VALUES ('" & txtname.Text.Trim() & "', '" & txtlicense.Text.Trim() & "')")
-                fill()
-                disablebuttons()
-                clearfields()
-                adding = False
-                MsgBox("Driver added successfully!", MsgBoxStyle.Information, "Success")
+                If SetQuery("INSERT INTO driver (name, license) VALUES (@name, @license)", P("@name", txtname.Text.Trim()), P("@license", txtlicense.Text.Trim())) Then
+                    fill()
+                    disablebuttons()
+                    clearfields()
+                    adding = False
+                    MsgBox("Driver added successfully!", MsgBoxStyle.Information, "Success")
+                End If
             End If
         ElseIf updating Then
             If MsgBox("Are you sure you want to update this driver?", MsgBoxStyle.Question + MsgBoxStyle.YesNo, "Confirm") = MsgBoxResult.Yes Then
-                SetQuery("UPDATE driver SET name = '" & txtname.Text.Trim() & "', license = '" & txtlicense.Text.Trim() & "' WHERE id = " & driverid)
-                fill()
-                disablebuttons()
-                clearfields()
-                updating = False
-                MsgBox("Driver updated successfully!", MsgBoxStyle.Information, "Success")
+                If SetQuery("UPDATE driver SET name = @name, license = @license WHERE id = @id", P("@name", txtname.Text.Trim()), P("@license", txtlicense.Text.Trim()), P("@id", driverid)) Then
+                    fill()
+                    disablebuttons()
+                    clearfields()
+                    updating = False
+                    MsgBox("Driver updated successfully!", MsgBoxStyle.Information, "Success")
+                End If
             End If
         End If
     End Sub
@@ -108,18 +110,29 @@
             Exit Sub
         End If
 
+        ' The foreign keys cascade, so deleting a driver would silently remove their deliveries.
+        Dim assigned As Integer = CInt(GetValue("SELECT COUNT(*) FROM order_driver WHERE driverid = @id", P("@id", driverid)))
+        If assigned > 0 Then
+            MsgBox("This driver is assigned to " & assigned & " delivery(ies) and can't be deleted. Reassign or delete those deliveries first.", MsgBoxStyle.Exclamation, "Driver In Use")
+            Exit Sub
+        End If
+
         If MsgBox("Are you sure you want to delete this driver?", MsgBoxStyle.Question + MsgBoxStyle.YesNo, "Confirm Delete") = MsgBoxResult.Yes Then
-            SetQuery("DELETE FROM driver WHERE id = " & driverid)
-            fill()
-            clearfields()
-            MsgBox("Driver deleted successfully!", MsgBoxStyle.Information, "Success")
+            If SetQuery("DELETE FROM driver WHERE id = @id", P("@id", driverid)) Then
+                fill()
+                clearfields()
+                disablebuttons()
+                MsgBox("Driver deleted successfully!", MsgBoxStyle.Information, "Success")
+            End If
         End If
     End Sub
 
     Private Sub driverlist_DoubleClick(sender As Object, e As EventArgs) Handles driverlist.DoubleClick
-        driverid = CInt(driverlist.FocusedItem.SubItems(0).Text)
-        txtname.Text = driverlist.FocusedItem.SubItems(1).Text
-        txtlicense.Text = driverlist.FocusedItem.SubItems(2).Text
+        If adding Or updating Or driverlist.SelectedItems.Count = 0 Then Exit Sub
+
+        driverid = CInt(driverlist.SelectedItems(0).SubItems(0).Text)
+        txtname.Text = driverlist.SelectedItems(0).SubItems(1).Text
+        txtlicense.Text = driverlist.SelectedItems(0).SubItems(2).Text
 
         btnupdate.Enabled = True
         btndelete.Enabled = True

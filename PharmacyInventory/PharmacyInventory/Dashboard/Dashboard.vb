@@ -47,7 +47,7 @@
         labelclicked(lblcustomer)
         switchPanel(CustomerForm)
         pnlhome.Visible = True
-        lbltitle.Text = "Dashboard / Supplier"
+        lbltitle.Text = "Dashboard / Customer"
         CustomerForm.fill()
     End Sub
 
@@ -79,7 +79,7 @@
     Private Sub lbldriver_Click(sender As Object, e As EventArgs) Handles lbldriver.Click
         labelclicked(lbldriver)
         switchPanel(DriverForm)
-        lbltitle.Text = "Dashboard / Driver"""
+        lbltitle.Text = "Dashboard / Driver"
         pnlhome.Visible = True
         DriverForm.fill()
     End Sub

@@ -4,7 +4,7 @@
     Public customerid As Integer = Nothing
 
     Private Sub CustomerForm_Load(sender As Object, e As EventArgs) Handles MyBase.Load
-        Connect("localhost", "dbpharmacy", "3306", "root", "")
+        Connect()
 
         fill()
 
@@ -17,11 +17,11 @@
         Dim search As String = txtsearch.Text.Trim()
         Dim query As String = "SELECT id, name, contact, address FROM customer"
         If search <> "" Then
-            query &= " WHERE id LIKE '%" & search & "%' OR name LIKE '%" & search & "%' OR contact LIKE '%" & search & "%' OR address LIKE '%" & search & "%'"
+            query &= " WHERE id LIKE @s OR name LIKE @s OR contact LIKE @s OR address LIKE @s"
         End If
         query &= " ORDER BY name ASC"
 
-        GetQuery(query, "customer")
+        GetQuery(query, "customer", P("@s", "%" & search & "%"))
         customerlist.Items.Clear()
 
 
@@ -85,18 +85,22 @@
 
         If adding Then
             If MsgBox("Are you sure you want to add a new customer?", MsgBoxStyle.Question + MsgBoxStyle.YesNo, "Confirm") = MsgBoxResult.Yes Then
-                SetQuery("INSERT INTO customer (name, contact, address) VALUES ('" & txtcustomername.Text.Trim() & "', '" & txtcontact.Text.Trim() & "', '" & txtaddress.Text.Trim() & "')")
-                MsgBox("Customer added successfully!", MsgBoxStyle.Information, "Success")
-                adding = False
-                refreshForm()
+                If SetQuery("INSERT INTO customer (name, contact, address) VALUES (@name, @contact, @address)",
+                            P("@name", txtcustomername.Text.Trim()), P("@contact", txtcontact.Text.Trim()), P("@address", txtaddress.Text.Trim())) Then
+                    MsgBox("Customer added successfully!", MsgBoxStyle.Information, "Success")
+                    adding = False
+                    refreshForm()
+                End If
             End If
 
         ElseIf updating Then
             If MsgBox("Are you sure you want to update this customer?", MsgBoxStyle.Question + MsgBoxStyle.YesNo, "Confirm") = MsgBoxResult.Yes Then
-                SetQuery("UPDATE customer SET name = '" & txtcustomername.Text.Trim() & "', contact = '" & txtcontact.Text.Trim() & "', address = '" & txtaddress.Text.Trim() & "' WHERE id = " & customerid)
-                MsgBox("Customer updated successfully!", MsgBoxStyle.Information, "Success")
-                updating = False
-                refreshForm()
+                If SetQuery("UPDATE customer SET name = @name, contact = @contact, address = @address WHERE id = @id",
+                            P("@name", txtcustomername.Text.Trim()), P("@contact", txtcontact.Text.Trim()), P("@address", txtaddress.Text.Trim()), P("@id", customerid)) Then
+                    MsgBox("Customer updated successfully!", MsgBoxStyle.Information, "Success")
+                    updating = False
+                    refreshForm()
+                End If
             End If
         End If
     End Sub
@@ -107,18 +111,28 @@
             Exit Sub
         End If
 
+        ' The foreign keys cascade, so deleting a customer would silently delete their orders and deliveries.
+        Dim orders As Integer = CInt(GetValue("SELECT COUNT(*) FROM orders WHERE customerid = @id", P("@id", customerid)))
+        If orders > 0 Then
+            MsgBox("This customer has " & orders & " order(s) and can't be deleted.", MsgBoxStyle.Exclamation, "Customer In Use")
+            Exit Sub
+        End If
+
         If MsgBox("Are you sure you want to delete this customer?", MsgBoxStyle.Question + MsgBoxStyle.YesNo, "Confirm Delete") = MsgBoxResult.Yes Then
-            SetQuery("DELETE FROM customer WHERE id = " & customerid)
-            MsgBox("Customer deleted successfully!", MsgBoxStyle.Information, "Success")
-            refreshForm()
+            If SetQuery("DELETE FROM customer WHERE id = @id", P("@id", customerid)) Then
+                MsgBox("Customer deleted successfully!", MsgBoxStyle.Information, "Success")
+                refreshForm()
+            End If
         End If
     End Sub
 
     Private Sub customerlist_DoubleClick(sender As Object, e As EventArgs) Handles customerlist.DoubleClick
-        customerid = CInt(customerlist.FocusedItem.SubItems(0).Text)
-        txtcustomername.Text = customerlist.FocusedItem.SubItems(1).Text
-        txtcontact.Text = customerlist.FocusedItem.SubItems(2).Text
-        txtaddress.Text = customerlist.FocusedItem.SubItems(3).Text
+        If adding Or updating Or customerlist.SelectedItems.Count = 0 Then Exit Sub
+
+        customerid = CInt(customerlist.SelectedItems(0).SubItems(0).Text)
+        txtcustomername.Text = customerlist.SelectedItems(0).SubItems(1).Text
+        txtcontact.Text = customerlist.SelectedItems(0).SubItems(2).Text
+        txtaddress.Text = customerlist.SelectedItems(0).SubItems(3).Text
 
         btnupdate.Enabled = True
         btndelete.Enabled = True

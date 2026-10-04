@@ -1,7 +1,7 @@
 ﻿Public Class HomeForm
 
     Private Sub HomeForm_Load(sender As Object, e As EventArgs) Handles MyBase.Load
-        Connect("localhost", "dbpharmacy", "3306", "root", "")
+        Connect()
         fill()
     End Sub
 
@@ -56,7 +56,7 @@
     End Sub
 
     Private Sub LoadRecentOrders()
-        GetQuery("SELECT o.id, c.name, o.orderdate, SUM(od.quantity * od.price) AS total FROM orders o INNER JOIN customer c ON o.customerid = c.id INNER JOIN orderdetails od ON o.id = od.orderid GROUP BY o.id ORDER BY o.orderdate DESC LIMIT 5", "orders")
+        GetQuery("SELECT o.id, c.name, o.orderdate, SUM(od.quantity * od.price) AS total FROM orders o INNER JOIN customer c ON o.customerid = c.id INNER JOIN orderdetails od ON o.id = od.orderid GROUP BY o.id, c.name, o.orderdate ORDER BY o.orderdate DESC LIMIT 5", "orders")
         recentorders.Items.Clear()
 
         For i As Integer = 0 To ds.Tables("orders").Rows.Count - 1
@@ -85,12 +85,15 @@
     End Sub
 
     Private Sub btnproducts_Click(sender As Object, e As EventArgs) Handles btnproducts.Click
+        labelclicked(Dashboard.lblproduct)
         Dashboard.switchPanel(ProductForm)
+        Dashboard.lbltitle.Text = "Dashboard / Product"
         ProductForm.fill()
         Dashboard.pnlhome.Visible = True
     End Sub
 
     Private Sub btnstockin_Click(sender As Object, e As EventArgs) Handles btnstockin.Click
+        labelclicked(Dashboard.lblstock)
         Dashboard.switchPanel(StockInForm)
         Dashboard.lbltitle.Text = "Dashboard / Stock / Stock In"
         StockInForm.fillstockinhistory()
@@ -98,6 +101,7 @@
     End Sub
 
     Private Sub btnstockout_Click(sender As Object, e As EventArgs) Handles btnstockout.Click
+        labelclicked(Dashboard.lblstock)
         Dashboard.switchPanel(StockoutForm)
         Dashboard.lbltitle.Text = "Dashboard / Stock / Stock Out"
         StockoutForm.fillstockouthistory()
@@ -105,17 +109,27 @@
     End Sub
 
     Private Sub btnorders_Click(sender As Object, e As EventArgs) Handles btnorders.Click
+        labelclicked(Dashboard.lblorder)
         Dashboard.switchPanel(OrderForm)
+        Dashboard.lbltitle.Text = "Dashboard / Order"
+        OrderForm.fillOrderHistory()
         Dashboard.pnlhome.Visible = True
     End Sub
 
     Private Sub btndeliveries_Click(sender As Object, e As EventArgs) Handles btndeliveries.Click
+        labelclicked(Dashboard.lbldelivery)
         Dashboard.switchPanel(DeliveryForm)
+        Dashboard.lbltitle.Text = "Dashboard / Delivery"
+        DeliveryForm.fill()
+        DeliveryForm.fillDrivers()
         Dashboard.pnlhome.Visible = True
     End Sub
 
     Private Sub Button1_Click(sender As Object, e As EventArgs) Handles btncategory.Click
+        labelclicked(Dashboard.lblcategory)
         Dashboard.switchPanel(CategoryForm)
+        Dashboard.lbltitle.Text = "Dashboard / Category"
+        CategoryForm.fill()
         Dashboard.pnlhome.Visible = True
     End Sub
 End Class

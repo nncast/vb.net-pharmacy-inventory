@@ -4,7 +4,7 @@
     Public supplierid As Integer = Nothing
 
     Private Sub SupplierForm_Load(sender As Object, e As EventArgs) Handles MyBase.Load
-        Connect("localhost", "dbpharmacy", "3306", "root", "")
+        Connect()
         btnnew.Enabled = True
         btnsave.Enabled = False
         pnlinput.Enabled = False
@@ -17,11 +17,11 @@
         Dim query As String = "SELECT id, name, contact, address FROM supplier"
 
         If search <> "" Then
-            query &= " WHERE id LIKE '%" & search & "%' OR name LIKE '%" & search & "%' OR contact LIKE '%" & search & "%' OR address LIKE '%" & search & "%'"
+            query &= " WHERE id LIKE @s OR name LIKE @s OR contact LIKE @s OR address LIKE @s"
         End If
 
         query &= " ORDER BY name ASC"
-        GetQuery(query, "supplier")
+        GetQuery(query, "supplier", P("@s", "%" & search & "%"))
 
         supplierlist.Items.Clear()
 
@@ -65,18 +65,22 @@
 
         If adding Then
             If MsgBox("Are you sure you want to add a new supplier?", MsgBoxStyle.Question + MsgBoxStyle.YesNo, "Confirm") = MsgBoxResult.Yes Then
-                SetQuery("INSERT INTO supplier (name, contact, address) VALUES ('" & txtsuppliername.Text.Trim() & "', '" & txtcontact.Text.Trim() & "', '" & txtaddress.Text.Trim() & "')")
-                MsgBox("Supplier added successfully!", MsgBoxStyle.Information, "Success")
-                adding = False
-                refreshForm()
+                If SetQuery("INSERT INTO supplier (name, contact, address) VALUES (@name, @contact, @address)",
+                            P("@name", txtsuppliername.Text.Trim()), P("@contact", txtcontact.Text.Trim()), P("@address", txtaddress.Text.Trim())) Then
+                    MsgBox("Supplier added successfully!", MsgBoxStyle.Information, "Success")
+                    adding = False
+                    refreshForm()
+                End If
             End If
 
         ElseIf updating Then
             If MsgBox("Are you sure you want to update this supplier?", MsgBoxStyle.Question + MsgBoxStyle.YesNo, "Confirm") = MsgBoxResult.Yes Then
-                SetQuery("UPDATE supplier SET name = '" & txtsuppliername.Text.Trim() & "', contact = '" & txtcontact.Text.Trim() & "', address = '" & txtaddress.Text.Trim() & "' WHERE id = " & supplierid)
-                MsgBox("Supplier updated successfully!", MsgBoxStyle.Information, "Success")
-                updating = False
-                refreshForm()
+                If SetQuery("UPDATE supplier SET name = @name, contact = @contact, address = @address WHERE id = @id",
+                            P("@name", txtsuppliername.Text.Trim()), P("@contact", txtcontact.Text.Trim()), P("@address", txtaddress.Text.Trim()), P("@id", supplierid)) Then
+                    MsgBox("Supplier updated successfully!", MsgBoxStyle.Information, "Success")
+                    updating = False
+                    refreshForm()
+                End If
             End If
         End If
     End Sub
@@ -87,27 +91,38 @@
             Exit Sub
         End If
 
+        ' The foreign keys cascade, so deleting a supplier would silently delete its stock-in history.
+        Dim stockIns As Integer = CInt(GetValue("SELECT COUNT(*) FROM stockin WHERE supplierid = @id", P("@id", supplierid)))
+        If stockIns > 0 Then
+            MsgBox("This supplier has " & stockIns & " stock-in record(s) and can't be deleted.", MsgBoxStyle.Exclamation, "Supplier In Use")
+            Exit Sub
+        End If
+
         If MsgBox("Are you sure you want to delete this supplier?", MsgBoxStyle.Question + MsgBoxStyle.YesNo, "Confirm Delete") = MsgBoxResult.Yes Then
-            SetQuery("DELETE FROM supplier WHERE id = " & supplierid)
-            MsgBox("Supplier deleted successfully!", MsgBoxStyle.Information, "Success")
-            refreshForm()
+            If SetQuery("DELETE FROM supplier WHERE id = @id", P("@id", supplierid)) Then
+                MsgBox("Supplier deleted successfully!", MsgBoxStyle.Information, "Success")
+                refreshForm()
+            End If
         End If
     End Sub
 
     Private Sub btncancel_Click(sender As Object, e As EventArgs) Handles btncancel.Click
         Dim action As String = If(adding, "adding", If(updating, "updating", ""))
-        If action <> "" AndAlso MsgBox("Are you sure you want to cancel " & action & " supplier information?", MsgBoxStyle.Question + MsgBoxStyle.YesNo, "Cancel") = MsgBoxResult.Yes Then
-            adding = False
-            updating = False
+        If action <> "" AndAlso MsgBox("Are you sure you want to cancel " & action & " supplier information?", MsgBoxStyle.Question + MsgBoxStyle.YesNo, "Cancel") = MsgBoxResult.No Then
+            Exit Sub
         End If
+        adding = False
+        updating = False
         refreshForm()
     End Sub
 
     Private Sub supplierlist_DoubleClick(sender As Object, e As EventArgs) Handles supplierlist.DoubleClick
-        supplierid = CInt(supplierlist.FocusedItem.SubItems(0).Text)
-        txtsuppliername.Text = supplierlist.FocusedItem.SubItems(1).Text
-        txtcontact.Text = supplierlist.FocusedItem.SubItems(2).Text
-        txtaddress.Text = supplierlist.FocusedItem.SubItems(3).Text
+        If adding Or updating Or supplierlist.SelectedItems.Count = 0 Then Exit Sub
+
+        supplierid = CInt(supplierlist.SelectedItems(0).SubItems(0).Text)
+        txtsuppliername.Text = supplierlist.SelectedItems(0).SubItems(1).Text
+        txtcontact.Text = supplierlist.SelectedItems(0).SubItems(2).Text
+        txtaddress.Text = supplierlist.SelectedItems(0).SubItems(3).Text
 
         btnupdate.Enabled = True
         btndelete.Enabled = True

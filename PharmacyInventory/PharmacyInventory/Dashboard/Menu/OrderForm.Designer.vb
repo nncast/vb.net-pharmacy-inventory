@@ -223,7 +223,6 @@ Partial Class OrderForm
         '
         Me.cmbcustomer.FlatStyle = System.Windows.Forms.FlatStyle.Flat
         Me.cmbcustomer.FormattingEnabled = True
-        Me.cmbcustomer.Items.AddRange(New Object() {"aaa", "bb"})
         Me.cmbcustomer.Location = New System.Drawing.Point(31, 19)
         Me.cmbcustomer.Name = "cmbcustomer"
         Me.cmbcustomer.Size = New System.Drawing.Size(222, 32)

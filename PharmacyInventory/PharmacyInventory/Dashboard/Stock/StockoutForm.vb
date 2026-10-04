@@ -1,6 +1,6 @@
 ﻿Public Class StockoutForm
     Private Sub StockoutForm_Load(sender As Object, e As EventArgs) Handles MyBase.Load
-        Connect("localhost", "dbpharmacy", "3306", "root", "")
+        Connect()
         fillstockouthistory()
     End Sub
 
@@ -26,18 +26,13 @@
                               "WHERE cd.status = 'Delivered' "
 
         If search <> "" Then
-            query &= "AND (so.id LIKE '%" & search & "%' " & _
-                     "OR c.name LIKE '%" & search & "%' " & _
-                     "OR c.address LIKE '%" & search & "%' " & _
-                     "OR d.name LIKE '%" & search & "%' " & _
-                     "OR p.productname LIKE '%" & search & "%' " & _
-                     "OR sod.quantity LIKE '%" & search & "%' " & _
-                     "OR so.transactiondate LIKE '%" & search & "%') "
+            query &= "AND (so.id LIKE @s OR c.name LIKE @s OR c.address LIKE @s OR d.name LIKE @s " & _
+                     "OR p.productname LIKE @s OR sod.quantity LIKE @s OR so.transactiondate LIKE @s) "
         End If
 
         query &= "ORDER BY so.transactiondate DESC"
 
-        GetQuery(query, "stockout_history")
+        GetQuery(query, "stockout_history", P("@s", "%" & search & "%"))
         lvStockoutHistory.Items.Clear()
 
         If ds.Tables("stockout_history").Rows.Count > 0 Then

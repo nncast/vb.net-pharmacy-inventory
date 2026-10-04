@@ -4,7 +4,7 @@
     Public updating As Boolean = False
 
     Private Sub OrderForm_Load(sender As Object, e As EventArgs) Handles MyBase.Load
-        Connect("localhost", "dbpharmacy", "3306", "root", "")
+        Connect()
 
         fillOrderHistory()
         disablebuttons()
@@ -15,7 +15,7 @@
     Private dtProducts As New DataTable()
 
     Private Sub fillCustomers()
-        GetQuery("SELECT id, name FROM customer", "customer")
+        GetQuery("SELECT id, name FROM customer ORDER BY name", "customer")
         dtCustomers = ds.Tables("customer").Copy()
         cmbcustomer.DataSource = dtCustomers
         cmbcustomer.DisplayMember = "name"
@@ -23,7 +23,7 @@
     End Sub
 
     Private Sub fillProducts()
-        GetQuery("SELECT productid, productname, price, stock FROM product", "product")
+        GetQuery("SELECT productid, productname, price, stock FROM product ORDER BY productname", "product")
         dtProducts = ds.Tables("product").Copy()
         cmbproduct.DataSource = dtProducts
         cmbproduct.DisplayMember = "productname"
@@ -32,18 +32,16 @@
 
     Public Sub fillOrderHistory()
         Dim search As String = txtSearch.Text.Trim()
-        Dim query As String = "SELECT o.id, c.name, o.orderdate " & _
+        Dim query As String = "SELECT o.id, c.name, o.orderdate " &
                               "FROM orders o LEFT JOIN customer c ON o.customerid = c.id "
 
         If search <> "" Then
-            query &= "WHERE o.id LIKE '%" & search & "%' " & _
-                     "OR c.name LIKE '%" & search & "%' " & _
-                     "OR o.orderdate LIKE '%" & search & "%' "
+            query &= "WHERE o.id LIKE @s OR c.name LIKE @s OR o.orderdate LIKE @s "
         End If
 
         query &= "ORDER BY o.orderdate DESC"
 
-        GetQuery(query, "orders")
+        GetQuery(query, "orders", P("@s", "%" & search & "%"))
         lvOrderHistory.Items.Clear()
 
         For Each row As DataRow In ds.Tables("orders").Rows
@@ -80,6 +78,11 @@
         btnsave.Enabled = 0
     End Sub
 
+    ' Stock leaves the shelf when an order is delivered, so delivered orders can't be changed.
+    Private Function IsDelivered(id As Integer) As Boolean
+        Return CInt(GetValue("SELECT COUNT(*) FROM customer_delivery WHERE orderid = @o AND status = 'Delivered'", P("@o", id))) > 0
+    End Function
+
     Private Sub btnnew_Click(sender As Object, e As EventArgs) Handles btnnew.Click
         lbltotal.Text = "00.00"
         enablebuttons()
@@ -88,9 +91,21 @@
         pnlinput.Enabled = True
         fillCustomers()
         fillProducts()
+        cmbcustomer.SelectedIndex = -1
+        cmbproduct.SelectedIndex = -1
     End Sub
 
     Private Sub btnupdate_Click(sender As Object, e As EventArgs) Handles btnupdate.Click
+        If orderid = Nothing Then
+            MsgBox("Please select an order to update.", MsgBoxStyle.Information, "Validation Error")
+            Exit Sub
+        End If
+
+        If IsDelivered(orderid) Then
+            MsgBox("This order has already been delivered, so its items can't be changed.", MsgBoxStyle.Exclamation, "Order Delivered")
+            Exit Sub
+        End If
+
         enablebuttons()
         updating = True
         pnlinput.Enabled = True
@@ -116,15 +131,33 @@
         Dim productName = selectedProduct("productname").ToString()
         Dim productId = CInt(selectedProduct("productid"))
         Dim price = CDec(selectedProduct("price"))
-        Dim quantity = CInt(numquantity.Text.Trim())
-        Dim total = price * quantity
+        Dim stock = CInt(selectedProduct("stock"))
+        Dim quantity = CInt(numquantity.Value)
+
+        ' Adding a product that is already in the cart increases that line instead of duplicating it.
+        Dim existing As ListViewItem = Nothing
+        For Each item As ListViewItem In lvcart.Items
+            If CInt(item.SubItems(4).Text) = productId Then existing = item
+        Next
+
+        Dim newQuantity As Integer = quantity + If(existing Is Nothing, 0, CInt(existing.SubItems(1).Text))
+        If newQuantity > stock Then
+            MsgBox("Only " & stock & " in stock for " & productName & ".", MsgBoxStyle.Information, "Not Enough Stock")
+            Exit Sub
+        End If
 
         If MsgBox("Are you sure you want to add this item to the cart?", MsgBoxStyle.Question + MsgBoxStyle.YesNo, "Confirm") = MsgBoxResult.Yes Then
-            Dim item = lvcart.Items.Add(productName)
-            item.SubItems.Add(quantity.ToString())
-            item.SubItems.Add(price.ToString("F2"))
-            item.SubItems.Add(total.ToString("F2"))
-            item.SubItems.Add(productId.ToString())
+            If existing IsNot Nothing Then
+                Dim existingPrice As Decimal = CDec(existing.SubItems(2).Text)
+                existing.SubItems(1).Text = newQuantity.ToString()
+                existing.SubItems(3).Text = (existingPrice * newQuantity).ToString("F2")
+            Else
+                Dim item = lvcart.Items.Add(productName)
+                item.SubItems.Add(quantity.ToString())
+                item.SubItems.Add(price.ToString("F2"))
+                item.SubItems.Add((price * quantity).ToString("F2"))
+                item.SubItems.Add(productId.ToString())
+            End If
 
             UpdateTotal()
         End If
@@ -145,11 +178,9 @@
             Exit Sub
         End If
 
+        ' Only the cart changes here; the order itself is updated when it is saved,
+        ' so Cancel still discards the removal.
         If MsgBox("Are you sure you want to remove this item from the cart?", MsgBoxStyle.Question + MsgBoxStyle.YesNo, "Confirm") = MsgBoxResult.Yes Then
-            Dim productId As Integer = CInt(lvCart.SelectedItems(0).SubItems(4).Text)
-            If updating Then
-                SetQuery("DELETE FROM orderdetails WHERE orderid = " & orderid & " AND productid = " & productId)
-            End If
             lvCart.Items.Remove(lvCart.SelectedItems(0))
             UpdateTotal()
         End If
@@ -158,62 +189,45 @@
 
 
     Private Sub btnsave_Click(sender As Object, e As EventArgs) Handles btnsave.Click
+        If Not (adding Or updating) Then Exit Sub
+
         If lvcart.Items.Count = 0 Then
             MsgBox("Your cart is empty. Please add items before saving the order.", MsgBoxStyle.Information, "Validation Error")
             Exit Sub
         End If
 
-        Dim customerId = CInt(cmbcustomer.SelectedValue)
-
-        If adding Then
-            If MsgBox("Are you sure you want to add a new order?", MsgBoxStyle.Question + MsgBoxStyle.YesNo, "Confirm") = MsgBoxResult.Yes Then
-                SetQuery("INSERT INTO orders (customerid) VALUES (" & customerId & ")")
-                GetQuery("SELECT LAST_INSERT_ID() AS last_id", "last_id")
-                orderid = CInt(ds.Tables("last_id").Rows(0).Item("last_id"))
-
-                For Each item As ListViewItem In lvCart.Items
-                    Dim productId = CInt(item.SubItems(4).Text)
-                    Dim quantity = CInt(item.SubItems(1).Text)
-                    Dim price = CDec(item.SubItems(2).Text)
-                    SetQuery("INSERT INTO orderdetails (orderid, productid, quantity, price) VALUES (" & orderid & ", " & productId & ", " & quantity & ", " & price & ")")
-                Next
-
-                MsgBox("Order added successfully!", MsgBoxStyle.Information, "Success")
-            End If
-
-        ElseIf updating Then
-            If MsgBox("Are you sure you want to update this order?", MsgBoxStyle.Question + MsgBoxStyle.YesNo, "Confirm") = MsgBoxResult.Yes Then
-
-                SetQuery("UPDATE orders SET customerid = " & customerId & " WHERE id = " & orderid)
-
-                GetQuery("SELECT productid FROM orderdetails WHERE orderid = " & orderid, "existingItems")
-                Dim existingItems As New List(Of Integer)
-                For Each row As DataRow In ds.Tables("existingItems").Rows
-                    existingItems.Add(CInt(row("productid")))
-                Next
-
-                For Each item As ListViewItem In lvcart.Items
-                    Dim productId As Integer = CInt(item.SubItems(4).Text)
-                    Dim quantity As Integer = CInt(item.SubItems(1).Text)
-                    Dim price As Decimal = CDec(item.SubItems(2).Text)
-
-                    If existingItems.Contains(productId) Then
-                        SetQuery("UPDATE orderdetails SET quantity = " & quantity & ", price = " & price &
-                                 " WHERE orderid = " & orderid & " AND productid = " & productId)
-                        existingItems.Remove(productId)
-                    Else
-                        SetQuery("INSERT INTO orderdetails (orderid, productid, quantity, price) VALUES (" &
-                                  orderid & ", " & productId & ", " & quantity & ", " & price & ")")
-                    End If
-                Next
-
-                For Each productId As Integer In existingItems
-                    SetQuery("DELETE FROM orderdetails WHERE orderid = " & orderid & " AND productid = " & productId)
-                Next
-
-                MsgBox("Order updated successfully!", MsgBoxStyle.Information, "Success")
-            End If
+        If cmbcustomer.SelectedIndex = -1 OrElse cmbcustomer.SelectedValue Is Nothing Then
+            MsgBox("Please select a customer.", MsgBoxStyle.Information, "Validation Error")
+            Exit Sub
         End If
+
+        Dim customerId = CInt(cmbcustomer.SelectedValue)
+        Dim question As String = If(adding, "Are you sure you want to add a new order?", "Are you sure you want to update this order?")
+        If MsgBox(question, MsgBoxStyle.Question + MsgBoxStyle.YesNo, "Confirm") <> MsgBoxResult.Yes Then Exit Sub
+
+        Dim wasAdding As Boolean = adding
+        Try
+            BeginTransaction()
+            If adding Then
+                Execute("INSERT INTO orders (customerid) VALUES (@c)", P("@c", customerId))
+                orderid = GetLastInsertedID()
+            Else
+                Execute("UPDATE orders SET customerid = @c WHERE id = @o", P("@c", customerId), P("@o", orderid))
+                Execute("DELETE FROM orderdetails WHERE orderid = @o", P("@o", orderid))
+            End If
+
+            For Each item As ListViewItem In lvcart.Items
+                Execute("INSERT INTO orderdetails (orderid, productid, quantity, price) VALUES (@o, @p, @q, @price)",
+                        P("@o", orderid), P("@p", CInt(item.SubItems(4).Text)), P("@q", CInt(item.SubItems(1).Text)), P("@price", CDec(item.SubItems(2).Text)))
+            Next
+            CommitTransaction()
+        Catch ex As Exception
+            RollbackTransaction()
+            MsgBox("Could not save the order: " & ex.Message, MsgBoxStyle.Critical, "Error")
+            Exit Sub
+        End Try
+
+        MsgBox(If(wasAdding, "Order added successfully!", "Order updated successfully!"), MsgBoxStyle.Information, "Success")
 
         lbltotal.Text = "00.00"
         fillOrderHistory()
@@ -245,48 +259,48 @@
         End If
     End Sub
 
-    
+
 
     Private Sub lvOrderHistory_DoubleClick(sender As Object, e As EventArgs) Handles lvOrderHistory.DoubleClick
-        orderid = CInt(lvOrderHistory.FocusedItem.SubItems(0).Text)
+        If adding Or updating Or lvOrderHistory.SelectedItems.Count = 0 Then Exit Sub
 
-        GetQuery("SELECT o.id, o.customerid, od.productid, od.quantity, od.price, p.productname, p.productid " &
+        orderid = CInt(lvOrderHistory.SelectedItems(0).SubItems(0).Text)
+
+        GetQuery("SELECT o.id, o.customerid, od.productid, od.quantity, od.price, p.productname " &
                  "FROM orders o " &
                  "INNER JOIN orderdetails od ON o.id = od.orderid " &
                  "INNER JOIN product p ON od.productid = p.productid " &
-                 "WHERE o.id = " & orderid, "orderdetails")
-
-        Dim customerid As String = ds.Tables("orderdetails").Rows(0).Item("customerid").ToString()
-        Dim productid As String = ds.Tables("orderdetails").Rows(0).Item("productid").ToString()
-        Dim quantity As Integer = CInt(ds.Tables("orderdetails").Rows(0).Item("quantity"))
-
-        lvcart.Items.Clear()
-        Dim totalPrice As Decimal = 0
-
-        For i = 0 To ds.Tables("orderdetails").Rows.Count - 1
-            Dim quantityItem = CInt(ds.Tables("orderdetails").Rows(i).Item("quantity"))
-            Dim priceItem = CDec(ds.Tables("orderdetails").Rows(i).Item("price"))
-            Dim itemTotal = quantityItem * priceItem
-            totalPrice += itemTotal
-
-            Dim item = lvcart.Items.Add(ds.Tables("orderdetails").Rows(i).Item("productname").ToString())
-            item.SubItems.Add(quantityItem.ToString())
-            item.SubItems.Add(priceItem.ToString("F2"))
-            item.SubItems.Add(itemTotal.ToString("F2"))
-            item.SubItems.Add(ds.Tables("orderdetails").Rows(i).Item("productid").ToString())
-
-        Next
+                 "WHERE o.id = @o", "orderdetails", P("@o", orderid))
 
         fillCustomers()
         fillProducts()
+        lvcart.Items.Clear()
 
-        cmbcustomer.SelectedValue = customerid
-        cmbproduct.SelectedValue = productid
+        If ds.Tables("orderdetails").Rows.Count = 0 Then
+            ' An order without items: still show its customer so it can be fixed or deleted.
+            cmbcustomer.SelectedValue = GetValue("SELECT customerid FROM orders WHERE id = @o", P("@o", orderid))
+            lbltotal.Text = "00.00"
+        Else
+            Dim totalPrice As Decimal = 0
 
-        lbltotal.Text = totalPrice.ToString("F2")
+            For i = 0 To ds.Tables("orderdetails").Rows.Count - 1
+                Dim quantityItem = CInt(ds.Tables("orderdetails").Rows(i).Item("quantity"))
+                Dim priceItem = CDec(ds.Tables("orderdetails").Rows(i).Item("price"))
+                Dim itemTotal = quantityItem * priceItem
+                totalPrice += itemTotal
 
+                Dim item = lvcart.Items.Add(ds.Tables("orderdetails").Rows(i).Item("productname").ToString())
+                item.SubItems.Add(quantityItem.ToString())
+                item.SubItems.Add(priceItem.ToString("F2"))
+                item.SubItems.Add(itemTotal.ToString("F2"))
+                item.SubItems.Add(ds.Tables("orderdetails").Rows(i).Item("productid").ToString())
+            Next
 
-        numquantity.Value = quantity
+            cmbcustomer.SelectedValue = ds.Tables("orderdetails").Rows(0).Item("customerid")
+            cmbproduct.SelectedValue = ds.Tables("orderdetails").Rows(0).Item("productid")
+            lbltotal.Text = totalPrice.ToString("F2")
+            numquantity.Value = Math.Min(numquantity.Maximum, CInt(ds.Tables("orderdetails").Rows(0).Item("quantity")))
+        End If
 
         btnupdate.Enabled = True
         btndelete.Enabled = True
@@ -296,7 +310,7 @@
         If cmbproduct.SelectedIndex >= 0 Then
             Dim selectedProduct = cmbproduct.SelectedItem
             Dim stock = CInt(selectedProduct("stock"))
-            numquantity.Maximum = stock
+            numquantity.Maximum = Math.Max(0, stock)
         Else
             numquantity.Maximum = 0
         End If
@@ -342,24 +356,36 @@
             Exit Sub
         End If
 
-        Dim confirmation As DialogResult = MsgBox("Are you sure you want to delete this order?", MsgBoxStyle.Question + MsgBoxStyle.YesNo, "Confirm Deletion")
+        If IsDelivered(orderid) Then
+            MsgBox("This order has already been delivered. Delete its delivery first (that returns the stock), then delete the order.", MsgBoxStyle.Exclamation, "Order Delivered")
+            Exit Sub
+        End If
 
-        If confirmation = DialogResult.Yes Then
+        Dim question As String = "Are you sure you want to delete this order?"
+        If CInt(GetValue("SELECT COUNT(*) FROM customer_delivery WHERE orderid = @o", P("@o", orderid))) > 0 Then
+            question &= vbCrLf & "Its pending delivery will also be removed."
+        End If
+
+        If MsgBox(question, MsgBoxStyle.Question + MsgBoxStyle.YesNo, "Confirm Deletion") = MsgBoxResult.Yes Then
             Try
-                SetQuery("DELETE FROM orderdetails WHERE orderid = " & orderid)
-
-                SetQuery("DELETE FROM orders WHERE id = " & orderid)
-
-                MsgBox("Order deleted successfully!", MsgBoxStyle.Information, "Success")
-
-                fillOrderHistory()
-                clearfields()
-                disablebuttons()
-                pnlinput.Enabled = False
-                orderid = Nothing
+                BeginTransaction()
+                Execute("DELETE FROM orderdetails WHERE orderid = @o", P("@o", orderid))
+                ' order_driver and customer_delivery rows are removed by ON DELETE CASCADE.
+                Execute("DELETE FROM orders WHERE id = @o", P("@o", orderid))
+                CommitTransaction()
             Catch ex As Exception
+                RollbackTransaction()
                 MsgBox("An error occurred while deleting the order: " & ex.Message, MsgBoxStyle.Critical, "Error")
+                Exit Sub
             End Try
+
+            MsgBox("Order deleted successfully!", MsgBoxStyle.Information, "Success")
+
+            fillOrderHistory()
+            clearfields()
+            disablebuttons()
+            pnlinput.Enabled = False
+            orderid = Nothing
         End If
     End Sub
 End Class

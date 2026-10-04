@@ -4,7 +4,9 @@
     Public stockinid As Integer = Nothing
 
     Private Sub StockInForm_Load(sender As Object, e As EventArgs) Handles MyBase.Load
-        Connect("localhost", "dbpharmacy", "3306", "root", "")
+        Connect()
+        ' The designer left the default limit of 100 units per stock-in.
+        numquantity.Maximum = 1000000
         fillSuppliers()
         fillProducts()
         fillstockinhistory()
@@ -15,24 +17,19 @@
 
     Public Sub fillstockinhistory()
         Dim search As String = txtsearch.Text.Trim()
-        Dim query As String = "SELECT s.id, sup.name AS supplier, sup.address, p.productname, sd.quantity, s.transactiondate " & _
-                              "FROM stockin s " & _
-                              "JOIN supplier sup ON s.supplierid = sup.id " & _
-                              "JOIN stockin_details sd ON s.id = sd.stockinid " & _
+        Dim query As String = "SELECT s.id, sup.name AS supplier, sup.address, p.productname, sd.quantity, s.transactiondate " &
+                              "FROM stockin s " &
+                              "JOIN supplier sup ON s.supplierid = sup.id " &
+                              "JOIN stockin_details sd ON s.id = sd.stockinid " &
                               "JOIN product p ON sd.productid = p.productid "
 
         If search <> "" Then
-            query &= "WHERE s.id LIKE '%" & search & "%' " & _
-                     "OR sup.name LIKE '%" & search & "%' " & _
-                     "OR sup.address LIKE '%" & search & "%' " & _
-                     "OR p.productname LIKE '%" & search & "%' " & _
-                     "OR sd.quantity LIKE '%" & search & "%' " & _
-                     "OR s.transactiondate LIKE '%" & search & "%' "
+            query &= "WHERE s.id LIKE @s OR sup.name LIKE @s OR sup.address LIKE @s OR p.productname LIKE @s OR sd.quantity LIKE @s OR s.transactiondate LIKE @s "
         End If
 
         query &= "ORDER BY s.transactiondate DESC"
 
-        GetQuery(query, "stockin_history")
+        GetQuery(query, "stockin_history", P("@s", "%" & search & "%"))
         liststockin.Items.Clear()
 
         For Each row As DataRow In ds.Tables("stockin_history").Rows
@@ -67,60 +64,82 @@
         cmbProduct.SelectedIndex = -1
     End Sub
 
+    ' Current stock of a product (call inside the transaction so the value is current).
+    Private Function StockOf(productId As Integer) As Integer
+        Return CInt(GetValue("SELECT stock FROM product WHERE productid = @p", P("@p", productId)))
+    End Function
 
     Private Sub btnsave_Click(sender As Object, e As EventArgs) Handles btnsave.Click
-        If cmbsupplier.SelectedIndex = -1 Or cmbProduct.SelectedIndex = -1 Or numquantity.Text = "" Then
+        If cmbsupplier.SelectedIndex = -1 Or cmbProduct.SelectedIndex = -1 Then
             MsgBox("Please complete all fields.", MsgBoxStyle.Information, "Missing Information")
             Exit Sub
         End If
 
-        Dim supplierId = cmbsupplier.SelectedValue
-        Dim productId = cmbProduct.SelectedValue
-        Dim quantity = CInt(numquantity.Text)
+        If numquantity.Value <= 0 Then
+            MsgBox("Quantity must be greater than zero.", MsgBoxStyle.Information, "Missing Information")
+            Exit Sub
+        End If
+
+        Dim supplierId As Integer = CInt(cmbsupplier.SelectedValue)
+        Dim productId As Integer = CInt(cmbProduct.SelectedValue)
+        Dim quantity As Integer = CInt(numquantity.Value)
 
         If adding Then
             If MsgBox("Are you sure you want to add this stock-in record?", MsgBoxStyle.Question + MsgBoxStyle.YesNo, "Confirm") = MsgBoxResult.Yes Then
                 Try
-                    SetQuery("INSERT INTO stockin (supplierid) VALUES ('" & supplierId & "')")
-                    Dim stockInId = cmd.LastInsertedId
-
-                    SetQuery("INSERT INTO stockin_details (stockinid, productid, quantity) VALUES ('" & stockInId & "', '" & productId & "', '" & quantity & "')")
-
-                    SetQuery("UPDATE product SET stock = stock + " & quantity & " WHERE productid = " & productId)
-
-                    fillstockinhistory()
-                    disablebuttons()
-                    clearfields()
-                    MsgBox("Stock-In Record Added Successfully!", MsgBoxStyle.Information, "Success")
-                    adding = False
-                    pnlinput.Enabled = False
+                    BeginTransaction()
+                    Execute("INSERT INTO stockin (supplierid) VALUES (@s)", P("@s", supplierId))
+                    Dim stockInId As Integer = GetLastInsertedID()
+                    Execute("INSERT INTO stockin_details (stockinid, productid, quantity) VALUES (@si, @p, @q)", P("@si", stockInId), P("@p", productId), P("@q", quantity))
+                    Execute("UPDATE product SET stock = stock + @q WHERE productid = @p", P("@q", quantity), P("@p", productId))
+                    CommitTransaction()
                 Catch ex As Exception
+                    RollbackTransaction()
                     MsgBox("Error: " & ex.Message, MsgBoxStyle.Critical, "Error")
+                    Exit Sub
                 End Try
+
+                fillstockinhistory()
+                disablebuttons()
+                clearfields()
+                MsgBox("Stock-In Record Added Successfully!", MsgBoxStyle.Information, "Success")
+                adding = False
+                pnlinput.Enabled = False
             End If
 
         ElseIf updating Then
             If MsgBox("Are you sure you want to update this stock-in record?", MsgBoxStyle.Question + MsgBoxStyle.YesNo, "Confirm Update") = MsgBoxResult.Yes Then
                 Try
-                    GetQuery("SELECT quantity FROM stockin_details WHERE stockinid = " & stockinid & " AND productid = " & productId, "current_quantity")
-                    Dim currentQuantity As Integer = CInt(ds.Tables("current_quantity").Rows(0)("quantity"))
+                    BeginTransaction()
+                    GetQuery("SELECT productid, quantity FROM stockin_details WHERE stockinid = @si", "current_detail", P("@si", stockinid))
+                    If ds.Tables("current_detail").Rows.Count = 0 Then Throw New InvalidOperationException("This stock-in record no longer exists.")
 
-                    SetQuery("UPDATE stockin SET supplierid = " & supplierId & " WHERE id = " & stockinid)
+                    Dim oldProductId As Integer = CInt(ds.Tables("current_detail").Rows(0)("productid"))
+                    Dim oldQuantity As Integer = CInt(ds.Tables("current_detail").Rows(0)("quantity"))
 
-                    SetQuery("UPDATE stockin_details SET quantity = " & quantity & " WHERE stockinid = " & stockinid & " AND productid = " & productId)
+                    ' Undo the old quantity, then add the new one (possibly to a different product).
+                    If StockOf(oldProductId) - oldQuantity + If(oldProductId = productId, quantity, 0) < 0 Then
+                        Throw New InvalidOperationException("Some of the stock from this record has already been used, so it can't be reduced that much.")
+                    End If
 
-                    Dim quantityDiff As Integer = quantity - currentQuantity
-                    SetQuery("UPDATE product SET stock = stock + " & quantityDiff & " WHERE productid = " & productId)
-
-                    fillstockinhistory()
-                    disablebuttons()
-                    clearfields()
-                    MsgBox("Stock-In Record Updated Successfully!", MsgBoxStyle.Information, "Success")
-                    updating = False
-                    pnlinput.Enabled = False
+                    Execute("UPDATE product SET stock = stock - @q WHERE productid = @p", P("@q", oldQuantity), P("@p", oldProductId))
+                    Execute("UPDATE product SET stock = stock + @q WHERE productid = @p", P("@q", quantity), P("@p", productId))
+                    Execute("UPDATE stockin SET supplierid = @s WHERE id = @si", P("@s", supplierId), P("@si", stockinid))
+                    Execute("UPDATE stockin_details SET productid = @p, quantity = @q WHERE stockinid = @si", P("@p", productId), P("@q", quantity), P("@si", stockinid))
+                    CommitTransaction()
                 Catch ex As Exception
+                    RollbackTransaction()
                     MsgBox("Error: " & ex.Message, MsgBoxStyle.Critical, "Error")
+                    Exit Sub
                 End Try
+
+                fillstockinhistory()
+                disablebuttons()
+                clearfields()
+                MsgBox("Stock-In Record Updated Successfully!", MsgBoxStyle.Information, "Success")
+                updating = False
+                stockinid = Nothing
+                pnlinput.Enabled = False
             End If
         End If
 
@@ -179,6 +198,7 @@
                 disablebuttons()
                 pnlinput.Enabled = False
                 updating = False
+                stockinid = Nothing
                 MsgBox("Updating operation cancelled.", MsgBoxStyle.Information, "Cancelled")
             End If
 
@@ -188,6 +208,7 @@
             pnlinput.Enabled = False
             updating = False
             adding = False
+            stockinid = Nothing
         End If
     End Sub
 
@@ -203,39 +224,64 @@
             Exit Sub
         End If
 
-        If MsgBox("Are you sure you want to delete this stock-in record?", MsgBoxStyle.Question + MsgBoxStyle.YesNo, "Confirm Delete") = MsgBoxResult.Yes Then
-            SetQuery("DELETE FROM stockin_details WHERE stockinid = " & stockinid)
-            SetQuery("DELETE FROM stockin WHERE id = " & stockinid)
+        If MsgBox("Are you sure you want to delete this stock-in record? Its quantity will be removed from the product's stock.", MsgBoxStyle.Question + MsgBoxStyle.YesNo, "Confirm Delete") = MsgBoxResult.Yes Then
+            Try
+                BeginTransaction()
+                GetQuery("SELECT productid, quantity FROM stockin_details WHERE stockinid = @si", "delete_detail", P("@si", stockinid))
+                For Each row As DataRow In ds.Tables("delete_detail").Rows
+                    Dim productId As Integer = CInt(row("productid"))
+                    Dim quantity As Integer = CInt(row("quantity"))
+                    If StockOf(productId) < quantity Then
+                        Throw New InvalidOperationException("Some of this stock has already been used, so the record can't be deleted.")
+                    End If
+                    Execute("UPDATE product SET stock = stock - @q WHERE productid = @p", P("@q", quantity), P("@p", productId))
+                Next
+                Execute("DELETE FROM stockin_details WHERE stockinid = @si", P("@si", stockinid))
+                Execute("DELETE FROM stockin WHERE id = @si", P("@si", stockinid))
+                CommitTransaction()
+            Catch ex As Exception
+                RollbackTransaction()
+                MsgBox("Error: " & ex.Message, MsgBoxStyle.Critical, "Error")
+                Exit Sub
+            End Try
+
             fillstockinhistory()
             clearfields()
+            stockinid = Nothing
             MsgBox("Stock-In Record Deleted Successfully!", MsgBoxStyle.Information, "Success")
         End If
     End Sub
 
 
     Private Sub btnupdate_Click(sender As Object, e As EventArgs) Handles btnupdate.Click
+        If stockinid = Nothing Then
+            MsgBox("Please select a stock-in record to update.", MsgBoxStyle.Information, "No Selection")
+            Exit Sub
+        End If
+
         enablebuttons()
         updating = True
         pnlinput.Enabled = True
     End Sub
 
     Private Sub liststockin_DoubleClick(sender As Object, e As EventArgs) Handles liststockin.DoubleClick
-        If liststockin.SelectedItems.Count > 0 Then
-            stockinid = CInt(liststockin.FocusedItem.SubItems(0).Text)
-            txtid.Text = stockinid
+        If adding Or updating Or liststockin.SelectedItems.Count = 0 Then Exit Sub
 
-            GetQuery("SELECT s.id, s.supplierid, sd.productid, sd.quantity " & _
-                     "FROM stockin s " & _
-                     "JOIN stockin_details sd ON s.id = sd.stockinid " & _
-                     "WHERE s.id = " & stockinid, "stockin_details")
+        stockinid = CInt(liststockin.SelectedItems(0).SubItems(0).Text)
+        txtid.Text = stockinid
 
-            cmbsupplier.SelectedValue = ds.Tables("stockin_details").Rows(0).Item("supplierid").ToString()
-            cmbProduct.SelectedValue = ds.Tables("stockin_details").Rows(0).Item("productid").ToString()
-            numquantity.Text = ds.Tables("stockin_details").Rows(0).Item("quantity").ToString()
+        GetQuery("SELECT s.id, s.supplierid, sd.productid, sd.quantity " &
+                 "FROM stockin s " &
+                 "JOIN stockin_details sd ON s.id = sd.stockinid " &
+                 "WHERE s.id = @si", "stockin_details", P("@si", stockinid))
+        If ds.Tables("stockin_details").Rows.Count = 0 Then Exit Sub
 
-            btnupdate.Enabled = True
-            btndelete.Enabled = True
-        End If
+        cmbsupplier.SelectedValue = ds.Tables("stockin_details").Rows(0).Item("supplierid")
+        cmbProduct.SelectedValue = ds.Tables("stockin_details").Rows(0).Item("productid")
+        numquantity.Value = CInt(ds.Tables("stockin_details").Rows(0).Item("quantity"))
+
+        btnupdate.Enabled = True
+        btndelete.Enabled = True
     End Sub
 
 
@@ -259,6 +305,7 @@
     Private Sub btnnew_Click(sender As Object, e As EventArgs) Handles btnnew.Click
         enablebuttons()
         clearfields()
+        stockinid = Nothing
         adding = True
         pnlinput.Enabled = True
     End Sub

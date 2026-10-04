@@ -4,7 +4,7 @@
     Public categoryid As Integer = Nothing
 
     Private Sub CategoryForm_Load(sender As Object, e As EventArgs) Handles MyBase.Load
-        Connect("localhost", "dbpharmacy", "3306", "root", "")
+        Connect()
 
         fill()
         btnnew.Enabled = True
@@ -15,9 +15,9 @@
     Public Sub fill()
         Dim search As String = txtsearch.Text.Trim()
         Dim query As String = "SELECT id, categoryname FROM category"
-        If search <> "" Then query &= " WHERE id LIKE '%" & search & "%' OR categoryname LIKE '%" & search & "%'"
+        If search <> "" Then query &= " WHERE id LIKE @s OR categoryname LIKE @s"
 
-        GetQuery(query, "category")
+        GetQuery(query, "category", P("@s", "%" & search & "%"))
         categorylist.Items.Clear()
 
         For Each row As DataRow In ds.Tables("category").Rows
@@ -72,25 +72,32 @@
             Exit Sub
         End If
 
+        If CInt(GetValue("SELECT COUNT(*) FROM category WHERE categoryname = @n AND id <> @id", P("@n", txtcategoryname.Text.Trim()), P("@id", If(updating, categoryid, -1)))) > 0 Then
+            MsgBox("A category with this name already exists.", MsgBoxStyle.Critical, "Validation Error")
+            Exit Sub
+        End If
+
         If adding Then
             If MsgBox("Are you sure you want to add a new category?", MsgBoxStyle.Question + MsgBoxStyle.YesNo, "Confirm") = MsgBoxResult.Yes Then
-                SetQuery("INSERT INTO category (categoryname) VALUES ('" & txtcategoryname.Text.Trim() & "')")
-                fill()
-                clearfields()
-                disablebuttons()
-                pnlinput.Enabled = False
-                adding = False
-                MsgBox("Category added successfully!", MsgBoxStyle.Information, "Success")
+                If SetQuery("INSERT INTO category (categoryname) VALUES (@n)", P("@n", txtcategoryname.Text.Trim())) Then
+                    fill()
+                    clearfields()
+                    disablebuttons()
+                    pnlinput.Enabled = False
+                    adding = False
+                    MsgBox("Category added successfully!", MsgBoxStyle.Information, "Success")
+                End If
             End If
         ElseIf updating Then
             If MsgBox("Are you sure you want to update this category?", MsgBoxStyle.Question + MsgBoxStyle.YesNo, "Confirm") = MsgBoxResult.Yes Then
-                SetQuery("UPDATE category SET categoryname = '" & txtcategoryname.Text.Trim() & "' WHERE id = " & categoryid)
-                fill()
-                clearfields()
-                disablebuttons()
-                pnlinput.Enabled = False
-                updating = False
-                MsgBox("Category updated successfully!", MsgBoxStyle.Information, "Success")
+                If SetQuery("UPDATE category SET categoryname = @n WHERE id = @id", P("@n", txtcategoryname.Text.Trim()), P("@id", categoryid)) Then
+                    fill()
+                    clearfields()
+                    disablebuttons()
+                    pnlinput.Enabled = False
+                    updating = False
+                    MsgBox("Category updated successfully!", MsgBoxStyle.Information, "Success")
+                End If
             End If
         End If
     End Sub
@@ -101,17 +108,28 @@
             Exit Sub
         End If
 
+        ' The foreign keys cascade: deleting a category would delete its products
+        ' and, with them, every order line and stock record for those products.
+        Dim products As Integer = CInt(GetValue("SELECT COUNT(*) FROM product WHERE categoryid = @id", P("@id", categoryid)))
+        If products > 0 Then
+            MsgBox("This category still has " & products & " product(s). Move or delete them before deleting the category.", MsgBoxStyle.Exclamation, "Category In Use")
+            Exit Sub
+        End If
+
         If MsgBox("Are you sure you want to delete this category?", MsgBoxStyle.Question + MsgBoxStyle.YesNo, "Confirm Delete") = MsgBoxResult.Yes Then
-            SetQuery("DELETE FROM category WHERE id = " & categoryid)
-            fill()
-            clearfields()
-            MsgBox("Category deleted successfully!", MsgBoxStyle.Information, "Success")
+            If SetQuery("DELETE FROM category WHERE id = @id", P("@id", categoryid)) Then
+                fill()
+                clearfields()
+                MsgBox("Category deleted successfully!", MsgBoxStyle.Information, "Success")
+            End If
         End If
     End Sub
 
     Private Sub categorylist_DoubleClick(sender As Object, e As EventArgs) Handles categorylist.DoubleClick
-        categoryid = CInt(categorylist.FocusedItem.SubItems(0).Text)
-        txtcategoryname.Text = categorylist.FocusedItem.SubItems(1).Text
+        If adding Or updating Or categorylist.SelectedItems.Count = 0 Then Exit Sub
+
+        categoryid = CInt(categorylist.SelectedItems(0).SubItems(0).Text)
+        txtcategoryname.Text = categorylist.SelectedItems(0).SubItems(1).Text
 
         btnupdate.Enabled = True
         btndelete.Enabled = True
