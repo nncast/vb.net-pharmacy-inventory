@@ -17,9 +17,9 @@
   <a href="https://github.com/nncast/vb.net-pharmacy-inventory/releases">All releases</a>
 </p>
 
-# PharmacyInventory
+# Pharmease Medical Store
 
-**PharmacyInventory** is a desktop-based inventory management system developed in **VB.NET** for pharmacies and medical suppliers. It enables real-time tracking of inventory levels, supply movement, and delivery logistics, including driver dispatch and delivery records.
+**Pharmease Medical Store** is a desktop-based inventory management system developed in **VB.NET** for pharmacies and medical suppliers. It enables real-time tracking of inventory levels, supply movement, and delivery logistics, including driver dispatch and delivery records.
 
 > **Current version: v0.1.1** — bug-fix and security release: stock now moves correctly for orders, deliveries and stock-ins, every query is parameterized, the connection settings live in a config file, and there is a ready-to-run Windows build. See [Releases](https://github.com/nncast/vb.net-pharmacy-inventory/releases) for the release notes.
 
@@ -81,4 +81,4 @@
 
 ---
 
-*PharmacyInventory · 2025 · VB.NET · Windows Forms · .NET Framework 4.8.1 · MySQL*
+*Pharmease Medical Store · Pharmacy Inventory System · 2025 · VB.NET · Windows Forms · .NET Framework 4.8.1 · MySQL*
