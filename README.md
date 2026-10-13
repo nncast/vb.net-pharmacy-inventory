@@ -3,7 +3,7 @@
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/version-0.1.1-0566BB?style=flat-square" alt="version">
+  <img src="https://img.shields.io/badge/version-0.1.2-0566BB?style=flat-square" alt="version">
   <img src="https://img.shields.io/badge/status-complete-0566BB?style=flat-square" alt="status">
   <img src="https://img.shields.io/badge/VB.NET-Windows_Forms-512BD4?style=flat-square&logo=dotnet&logoColor=white" alt="VB.NET">
   <img src="https://img.shields.io/badge/.NET_Framework-4.8.1-512BD4?style=flat-square&logo=dotnet&logoColor=white" alt=".NET Framework">
@@ -11,9 +11,9 @@
 </p>
 
 <p align="center">
-  <b>Download v0.1.1:</b>
-  <a href="https://github.com/nncast/vb.net-pharmacy-inventory/releases/download/v0.1.1/PharmacyInventory-v0.1.1-Windows.zip">Windows (.zip)</a> ·
-  <a href="https://github.com/nncast/vb.net-pharmacy-inventory/archive/refs/tags/v0.1.1.zip">Source (.zip)</a> |
+  <b>Download v0.1.2:</b>
+  <a href="https://github.com/nncast/vb.net-pharmacy-inventory/releases/download/v0.1.2/PharmacyInventory-v0.1.2-Windows.zip">Windows (.zip)</a> ·
+  <a href="https://github.com/nncast/vb.net-pharmacy-inventory/archive/refs/tags/v0.1.2.zip">Source (.zip)</a> |
   <a href="https://github.com/nncast/vb.net-pharmacy-inventory/releases">All releases</a>
 </p>
 
@@ -21,7 +21,7 @@
 
 **Pharmease Medical Store** is a desktop-based inventory management system developed in **VB.NET** for pharmacies and medical suppliers. It enables real-time tracking of inventory levels, supply movement, and delivery logistics, including driver dispatch and delivery records.
 
-> **Current version: v0.1.1** — bug-fix and security release: stock now moves correctly for orders, deliveries and stock-ins, every query is parameterized, the connection settings live in a config file, and there is a ready-to-run Windows build. See [Releases](https://github.com/nncast/vb.net-pharmacy-inventory/releases) for the release notes.
+> **Current version: v0.1.2** — documentation update; the app is unchanged from v0.1.1, the bug-fix and security release: stock now moves correctly for orders, deliveries and stock-ins, every query is parameterized, the connection settings live in a config file, and there is a ready-to-run Windows build. See [Releases](https://github.com/nncast/vb.net-pharmacy-inventory/releases) for the release notes.
 
 <p align="center">
   <img src="assets/screenshots/home.png" width="400" alt="Home dashboard"/>
@@ -62,14 +62,14 @@
 
 **Windows build (no Visual Studio needed)**
 
-1. Download [`PharmacyInventory-v0.1.1-Windows.zip`](https://github.com/nncast/vb.net-pharmacy-inventory/releases/download/v0.1.1/PharmacyInventory-v0.1.1-Windows.zip) from the [v0.1.1 release](https://github.com/nncast/vb.net-pharmacy-inventory/releases/tag/v0.1.1) and extract it.
+1. Download [`PharmacyInventory-v0.1.2-Windows.zip`](https://github.com/nncast/vb.net-pharmacy-inventory/releases/download/v0.1.2/PharmacyInventory-v0.1.2-Windows.zip) from the [v0.1.2 release](https://github.com/nncast/vb.net-pharmacy-inventory/releases/tag/v0.1.2) and extract it.
 2. Start MySQL (XAMPP, WAMP, or another server) and import `database/dbpharmacy.sql` from the extracted folder.
 3. If your MySQL server, port, user or password differ from `localhost:3306` / `root` / no password, open `PharmacyInventory.exe.config` in Notepad and edit the `PharmacyDb` connection string.
 4. Run `PharmacyInventory.exe`.
 
 **From source**
 
-1. Clone the repository, or download the [source .zip](https://github.com/nncast/vb.net-pharmacy-inventory/archive/refs/tags/v0.1.1.zip).
+1. Clone the repository, or download the [source .zip](https://github.com/nncast/vb.net-pharmacy-inventory/archive/refs/tags/v0.1.2.zip).
    ```bash
    git clone https://github.com/nncast/vb.net-pharmacy-inventory.git
    ```
