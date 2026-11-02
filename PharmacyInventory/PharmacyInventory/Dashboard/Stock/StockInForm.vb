@@ -7,12 +7,20 @@
         Connect()
         ' The designer left the default limit of 100 units per stock-in.
         numquantity.Maximum = 1000000
-        fillSuppliers()
-        fillProducts()
-        fillstockinhistory()
+        fill()
         btnnew.Enabled = True
         btnsave.Enabled = False
         pnlinput.Enabled = False
+    End Sub
+
+    ' Load only runs once, so every way into this screen calls fill() to pick up
+    ' suppliers and products added since. The lists keep their picks while editing.
+    Public Sub fill()
+        If Not (adding Or updating) Then
+            fillSuppliers()
+            fillProducts()
+        End If
+        fillstockinhistory()
     End Sub
 
     Public Sub fillstockinhistory()
