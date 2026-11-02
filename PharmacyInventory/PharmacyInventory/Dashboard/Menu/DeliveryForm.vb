@@ -49,6 +49,7 @@
         If search <> "" Then
             query &= " WHERE cd.id LIKE @s OR c.name LIKE @s OR d.name LIKE @s OR cd.status LIKE @s"
         End If
+        query &= " ORDER BY cd.dateassigned DESC, cd.id DESC"
 
         GetQuery(query, "delivery", P("@s", "%" & search & "%"))
 
