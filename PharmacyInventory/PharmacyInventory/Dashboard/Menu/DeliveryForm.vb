@@ -196,7 +196,8 @@
         clearFields()
         Dim item As ListViewItem = lvDeliveryHistory.SelectedItems(0)
         deliveryid = CInt(item.SubItems(0).Text)
-        txtorderid.Text = deliveryid.ToString()
+        ' The box is labelled Order ID, so show the delivery's order, not the delivery number.
+        txtorderid.Text = Convert.ToString(GetValue("SELECT orderid FROM customer_delivery WHERE id = @id", P("@id", deliveryid)))
 
         Dim driverId = CInt(item.Tag)
         Dim status = item.SubItems(4).Text
