@@ -1,6 +1,7 @@
 ﻿Public Class StockoutForm
     Private Sub StockoutForm_Load(sender As Object, e As EventArgs) Handles MyBase.Load
         Connect()
+        EnsureStockAfterColumn()
         fillstockouthistory()
     End Sub
 
@@ -13,8 +14,8 @@
                               "d.name AS driver_name, " & _
                               "p.productname AS product, " & _
                               "sod.quantity AS order_quantity, " & _
-                              "(sod.quantity + p.stock) AS stock_before, " & _
-                              "p.stock AS stock_after, " & _
+                              "(sod.stock_after + sod.quantity) AS stock_before, " & _
+                              "sod.stock_after AS stock_after, " & _
                               "so.transactiondate AS date_stockout " & _
                               "FROM stockout so " & _
                               "INNER JOIN customer_delivery cd ON so.customer_delivery_id = cd.id " & _
@@ -44,8 +45,9 @@
                     .Add(row("driver_name").ToString())
                     .Add(row("product").ToString())
                     .Add(row("order_quantity").ToString())
-                    .Add(row("stock_before").ToString())
-                    .Add(row("stock_after").ToString())
+                    ' Stock-outs recorded before v0.1.3 have no saved levels.
+                    .Add(If(IsDBNull(row("stock_after")), "N/A", row("stock_before").ToString()))
+                    .Add(If(IsDBNull(row("stock_after")), "N/A", row("stock_after").ToString()))
                     .Add(Convert.ToDateTime(row("date_stockout")).ToString("yyyy-MM-dd HH:mm:ss"))
                 End With
             Next

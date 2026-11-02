@@ -23,4 +23,16 @@
         End If
     End Sub
 
+    ' stockout_details.stock_after (added in v0.1.3) keeps each product's stock right
+    ' after a stock-out, so the history shows the levels at that time. Databases
+    ' created before it get the column the first time it is needed.
+    Private stockAfterReady As Boolean = False
+    Public Sub EnsureStockAfterColumn()
+        If stockAfterReady Then Return
+        If CInt(GetValue("SELECT COUNT(*) FROM information_schema.columns WHERE table_schema = DATABASE() AND table_name = 'stockout_details' AND column_name = 'stock_after'")) = 0 Then
+            If Not SetQuery("ALTER TABLE stockout_details ADD COLUMN stock_after INT NULL") Then Return
+        End If
+        stockAfterReady = True
+    End Sub
+
 End Module
