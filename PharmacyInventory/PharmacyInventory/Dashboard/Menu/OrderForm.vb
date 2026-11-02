@@ -122,6 +122,12 @@
             Exit Sub
         End If
 
+        ' With no stock the quantity box is capped at 0, so say why instead of asking for a quantity.
+        If CInt(cmbproduct.SelectedItem("stock")) <= 0 Then
+            MsgBox(cmbproduct.Text & " is out of stock.", MsgBoxStyle.Information, "Out of Stock")
+            Exit Sub
+        End If
+
         If numquantity.Value <= 0 Then
             MsgBox("Please enter a quantity greater than zero.", MsgBoxStyle.Information, "Validation Error")
             Exit Sub
