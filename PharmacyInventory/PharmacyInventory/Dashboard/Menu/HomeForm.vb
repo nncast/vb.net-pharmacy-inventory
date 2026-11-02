@@ -96,7 +96,7 @@
         labelclicked(Dashboard.lblstock)
         Dashboard.switchPanel(StockInForm)
         Dashboard.lbltitle.Text = "Dashboard / Stock / Stock In"
-        StockInForm.fillstockinhistory()
+        StockInForm.fill()
         Dashboard.pnlhome.Visible = True
     End Sub
 
