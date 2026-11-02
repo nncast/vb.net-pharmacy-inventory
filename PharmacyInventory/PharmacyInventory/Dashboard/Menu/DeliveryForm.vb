@@ -4,6 +4,7 @@
 
     Private Sub DeliveryForm_Load(sender As Object, e As EventArgs) Handles MyBase.Load
         Connect()
+        EnsureStockAfterColumn()
         disableButtons()
         pnlinput.Enabled = False
 
@@ -139,19 +140,24 @@
                 GetQuery("SELECT od.productid, od.quantity, p.stock, p.productname FROM orderdetails od INNER JOIN product p ON od.productid = p.productid WHERE od.orderid = @o",
                          "orderdetails", P("@o", deliveredOrderId))
 
-                For Each row As DataRow In ds.Tables("orderdetails").Rows
-                    If CInt(row("quantity")) > CInt(row("stock")) Then
-                        Throw New InvalidOperationException("Not enough stock for " & row("productname").ToString() & " (needs " & row("quantity").ToString() & ", has " & row("stock").ToString() & ").")
-                    End If
-                Next
-
                 Execute("INSERT INTO stockout (customer_delivery_id, transactiondate) VALUES (@cd, NOW())", P("@cd", deliveryid))
                 Dim stockoutId As Integer = GetLastInsertedID()
 
+                ' Stock left per product as each line goes out; an order can list a product
+                ' more than once, so later lines must see what earlier lines took.
+                Dim stockLeft As New Dictionary(Of Integer, Integer)
                 For Each row As DataRow In ds.Tables("orderdetails").Rows
                     Dim productId As Integer = CInt(row("productid"))
                     Dim quantity As Integer = CInt(row("quantity"))
-                    Execute("INSERT INTO stockout_details (stockoutid, productid, quantity) VALUES (@so, @p, @q)", P("@so", stockoutId), P("@p", productId), P("@q", quantity))
+                    If Not stockLeft.ContainsKey(productId) Then stockLeft(productId) = CInt(row("stock"))
+
+                    If quantity > stockLeft(productId) Then
+                        Throw New InvalidOperationException("Not enough stock for " & row("productname").ToString() & " (needs " & quantity & ", has " & stockLeft(productId) & ").")
+                    End If
+                    stockLeft(productId) -= quantity
+
+                    Execute("INSERT INTO stockout_details (stockoutid, productid, quantity, stock_after) VALUES (@so, @p, @q, @after)",
+                            P("@so", stockoutId), P("@p", productId), P("@q", quantity), P("@after", stockLeft(productId)))
                     Execute("UPDATE product SET stock = stock - @q WHERE productid = @p", P("@q", quantity), P("@p", productId))
                 Next
                 stockMessage = "Stockout recorded successfully for delivered order!"

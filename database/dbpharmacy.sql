@@ -226,6 +226,7 @@ CREATE TABLE `stockout_details` (
   `stockoutid` int(11) NOT NULL,
   `productid` int(11) NOT NULL,
   `quantity` int(11) NOT NULL,
+  `stock_after` int(11) DEFAULT NULL COMMENT 'product stock right after this stock-out',
   PRIMARY KEY (`id`),
   KEY `stockoutid` (`stockoutid`),
   KEY `productid` (`productid`),
