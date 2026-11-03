@@ -64,23 +64,19 @@
         End If
 
         If adding Then
-            If MsgBox("Are you sure you want to add a new supplier?", MsgBoxStyle.Question + MsgBoxStyle.YesNo, "Confirm") = MsgBoxResult.Yes Then
-                If SetQuery("INSERT INTO supplier (name, contact, address) VALUES (@name, @contact, @address)",
-                            P("@name", txtsuppliername.Text.Trim()), P("@contact", txtcontact.Text.Trim()), P("@address", txtaddress.Text.Trim())) Then
-                    MsgBox("Supplier added successfully!", MsgBoxStyle.Information, "Success")
-                    adding = False
-                    refreshForm()
-                End If
+            If SetQuery("INSERT INTO supplier (name, contact, address) VALUES (@name, @contact, @address)",
+                        P("@name", txtsuppliername.Text.Trim()), P("@contact", txtcontact.Text.Trim()), P("@address", txtaddress.Text.Trim())) Then
+                Toast.Notify("Supplier added successfully!")
+                adding = False
+                refreshForm()
             End If
 
         ElseIf updating Then
-            If MsgBox("Are you sure you want to update this supplier?", MsgBoxStyle.Question + MsgBoxStyle.YesNo, "Confirm") = MsgBoxResult.Yes Then
-                If SetQuery("UPDATE supplier SET name = @name, contact = @contact, address = @address WHERE id = @id",
-                            P("@name", txtsuppliername.Text.Trim()), P("@contact", txtcontact.Text.Trim()), P("@address", txtaddress.Text.Trim()), P("@id", supplierid)) Then
-                    MsgBox("Supplier updated successfully!", MsgBoxStyle.Information, "Success")
-                    updating = False
-                    refreshForm()
-                End If
+            If SetQuery("UPDATE supplier SET name = @name, contact = @contact, address = @address WHERE id = @id",
+                        P("@name", txtsuppliername.Text.Trim()), P("@contact", txtcontact.Text.Trim()), P("@address", txtaddress.Text.Trim()), P("@id", supplierid)) Then
+                Toast.Notify("Supplier updated successfully!")
+                updating = False
+                refreshForm()
             End If
         End If
     End Sub
@@ -100,7 +96,7 @@
 
         If MsgBox("Are you sure you want to delete this supplier?", MsgBoxStyle.Question + MsgBoxStyle.YesNo, "Confirm Delete") = MsgBoxResult.Yes Then
             If SetQuery("DELETE FROM supplier WHERE id = @id", P("@id", supplierid)) Then
-                MsgBox("Supplier deleted successfully!", MsgBoxStyle.Information, "Success")
+                Toast.Notify("Supplier deleted successfully!")
                 refreshForm()
             End If
         End If

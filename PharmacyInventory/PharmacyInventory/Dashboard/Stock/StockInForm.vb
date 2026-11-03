@@ -93,62 +93,58 @@
         Dim quantity As Integer = CInt(numquantity.Value)
 
         If adding Then
-            If MsgBox("Are you sure you want to add this stock-in record?", MsgBoxStyle.Question + MsgBoxStyle.YesNo, "Confirm") = MsgBoxResult.Yes Then
-                Try
-                    BeginTransaction()
-                    Execute("INSERT INTO stockin (supplierid) VALUES (@s)", P("@s", supplierId))
-                    Dim stockInId As Integer = GetLastInsertedID()
-                    Execute("INSERT INTO stockin_details (stockinid, productid, quantity) VALUES (@si, @p, @q)", P("@si", stockInId), P("@p", productId), P("@q", quantity))
-                    Execute("UPDATE product SET stock = stock + @q WHERE productid = @p", P("@q", quantity), P("@p", productId))
-                    CommitTransaction()
-                Catch ex As Exception
-                    RollbackTransaction()
-                    MsgBox("Error: " & ex.Message, MsgBoxStyle.Critical, "Error")
-                    Exit Sub
-                End Try
+            Try
+                BeginTransaction()
+                Execute("INSERT INTO stockin (supplierid) VALUES (@s)", P("@s", supplierId))
+                Dim stockInId As Integer = GetLastInsertedID()
+                Execute("INSERT INTO stockin_details (stockinid, productid, quantity) VALUES (@si, @p, @q)", P("@si", stockInId), P("@p", productId), P("@q", quantity))
+                Execute("UPDATE product SET stock = stock + @q WHERE productid = @p", P("@q", quantity), P("@p", productId))
+                CommitTransaction()
+            Catch ex As Exception
+                RollbackTransaction()
+                MsgBox("Error: " & ex.Message, MsgBoxStyle.Critical, "Error")
+                Exit Sub
+            End Try
 
-                fillstockinhistory()
-                disablebuttons()
-                clearfields()
-                MsgBox("Stock-In Record Added Successfully!", MsgBoxStyle.Information, "Success")
-                adding = False
-                pnlinput.Enabled = False
-            End If
+            fillstockinhistory()
+            disablebuttons()
+            clearfields()
+            Toast.Notify("Stock-In Record Added Successfully!")
+            adding = False
+            pnlinput.Enabled = False
 
         ElseIf updating Then
-            If MsgBox("Are you sure you want to update this stock-in record?", MsgBoxStyle.Question + MsgBoxStyle.YesNo, "Confirm Update") = MsgBoxResult.Yes Then
-                Try
-                    BeginTransaction()
-                    GetQuery("SELECT productid, quantity FROM stockin_details WHERE stockinid = @si", "current_detail", P("@si", stockinid))
-                    If ds.Tables("current_detail").Rows.Count = 0 Then Throw New InvalidOperationException("This stock-in record no longer exists.")
+            Try
+                BeginTransaction()
+                GetQuery("SELECT productid, quantity FROM stockin_details WHERE stockinid = @si", "current_detail", P("@si", stockinid))
+                If ds.Tables("current_detail").Rows.Count = 0 Then Throw New InvalidOperationException("This stock-in record no longer exists.")
 
-                    Dim oldProductId As Integer = CInt(ds.Tables("current_detail").Rows(0)("productid"))
-                    Dim oldQuantity As Integer = CInt(ds.Tables("current_detail").Rows(0)("quantity"))
+                Dim oldProductId As Integer = CInt(ds.Tables("current_detail").Rows(0)("productid"))
+                Dim oldQuantity As Integer = CInt(ds.Tables("current_detail").Rows(0)("quantity"))
 
-                    ' Undo the old quantity, then add the new one (possibly to a different product).
-                    If StockOf(oldProductId) - oldQuantity + If(oldProductId = productId, quantity, 0) < 0 Then
-                        Throw New InvalidOperationException("Some of the stock from this record has already been used, so it can't be reduced that much.")
-                    End If
+                ' Undo the old quantity, then add the new one (possibly to a different product).
+                If StockOf(oldProductId) - oldQuantity + If(oldProductId = productId, quantity, 0) < 0 Then
+                    Throw New InvalidOperationException("Some of the stock from this record has already been used, so it can't be reduced that much.")
+                End If
 
-                    Execute("UPDATE product SET stock = stock - @q WHERE productid = @p", P("@q", oldQuantity), P("@p", oldProductId))
-                    Execute("UPDATE product SET stock = stock + @q WHERE productid = @p", P("@q", quantity), P("@p", productId))
-                    Execute("UPDATE stockin SET supplierid = @s WHERE id = @si", P("@s", supplierId), P("@si", stockinid))
-                    Execute("UPDATE stockin_details SET productid = @p, quantity = @q WHERE stockinid = @si", P("@p", productId), P("@q", quantity), P("@si", stockinid))
-                    CommitTransaction()
-                Catch ex As Exception
-                    RollbackTransaction()
-                    MsgBox("Error: " & ex.Message, MsgBoxStyle.Critical, "Error")
-                    Exit Sub
-                End Try
+                Execute("UPDATE product SET stock = stock - @q WHERE productid = @p", P("@q", oldQuantity), P("@p", oldProductId))
+                Execute("UPDATE product SET stock = stock + @q WHERE productid = @p", P("@q", quantity), P("@p", productId))
+                Execute("UPDATE stockin SET supplierid = @s WHERE id = @si", P("@s", supplierId), P("@si", stockinid))
+                Execute("UPDATE stockin_details SET productid = @p, quantity = @q WHERE stockinid = @si", P("@p", productId), P("@q", quantity), P("@si", stockinid))
+                CommitTransaction()
+            Catch ex As Exception
+                RollbackTransaction()
+                MsgBox("Error: " & ex.Message, MsgBoxStyle.Critical, "Error")
+                Exit Sub
+            End Try
 
-                fillstockinhistory()
-                disablebuttons()
-                clearfields()
-                MsgBox("Stock-In Record Updated Successfully!", MsgBoxStyle.Information, "Success")
-                updating = False
-                stockinid = Nothing
-                pnlinput.Enabled = False
-            End If
+            fillstockinhistory()
+            disablebuttons()
+            clearfields()
+            Toast.Notify("Stock-In Record Updated Successfully!")
+            updating = False
+            stockinid = Nothing
+            pnlinput.Enabled = False
         End If
 
     End Sub
@@ -256,7 +252,7 @@
             fillstockinhistory()
             clearfields()
             stockinid = Nothing
-            MsgBox("Stock-In Record Deleted Successfully!", MsgBoxStyle.Information, "Success")
+            Toast.Notify("Stock-In Record Deleted Successfully!")
         End If
     End Sub
 

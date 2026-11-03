@@ -78,26 +78,22 @@
         End If
 
         If adding Then
-            If MsgBox("Are you sure you want to add a new category?", MsgBoxStyle.Question + MsgBoxStyle.YesNo, "Confirm") = MsgBoxResult.Yes Then
-                If SetQuery("INSERT INTO category (categoryname) VALUES (@n)", P("@n", txtcategoryname.Text.Trim())) Then
-                    fill()
-                    clearfields()
-                    disablebuttons()
-                    pnlinput.Enabled = False
-                    adding = False
-                    MsgBox("Category added successfully!", MsgBoxStyle.Information, "Success")
-                End If
+            If SetQuery("INSERT INTO category (categoryname) VALUES (@n)", P("@n", txtcategoryname.Text.Trim())) Then
+                fill()
+                clearfields()
+                disablebuttons()
+                pnlinput.Enabled = False
+                adding = False
+                Toast.Notify("Category added successfully!")
             End If
         ElseIf updating Then
-            If MsgBox("Are you sure you want to update this category?", MsgBoxStyle.Question + MsgBoxStyle.YesNo, "Confirm") = MsgBoxResult.Yes Then
-                If SetQuery("UPDATE category SET categoryname = @n WHERE id = @id", P("@n", txtcategoryname.Text.Trim()), P("@id", categoryid)) Then
-                    fill()
-                    clearfields()
-                    disablebuttons()
-                    pnlinput.Enabled = False
-                    updating = False
-                    MsgBox("Category updated successfully!", MsgBoxStyle.Information, "Success")
-                End If
+            If SetQuery("UPDATE category SET categoryname = @n WHERE id = @id", P("@n", txtcategoryname.Text.Trim()), P("@id", categoryid)) Then
+                fill()
+                clearfields()
+                disablebuttons()
+                pnlinput.Enabled = False
+                updating = False
+                Toast.Notify("Category updated successfully!")
             End If
         End If
     End Sub
@@ -120,7 +116,7 @@
             If SetQuery("DELETE FROM category WHERE id = @id", P("@id", categoryid)) Then
                 fill()
                 clearfields()
-                MsgBox("Category deleted successfully!", MsgBoxStyle.Information, "Success")
+                Toast.Notify("Category deleted successfully!")
             End If
         End If
     End Sub

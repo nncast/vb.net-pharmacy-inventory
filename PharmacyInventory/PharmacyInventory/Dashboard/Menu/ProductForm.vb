@@ -104,11 +104,11 @@
         If adding Then
             saved = SetQuery("INSERT INTO product (productname, categoryid, stock, price) VALUES (@name, @cat, @stock, @price)",
                              P("@name", txtproductname.Text.Trim()), P("@cat", cbocategory.SelectedValue), P("@stock", CInt(txtstock.Value)), P("@price", price))
-            If saved Then MsgBox("Product added successfully!", MsgBoxStyle.Information, "Success")
+            If saved Then Toast.Notify("Product added successfully!")
         ElseIf updating Then
             saved = SetQuery("UPDATE product SET productname = @name, categoryid = @cat, stock = @stock, price = @price WHERE productid = @id",
                              P("@name", txtproductname.Text.Trim()), P("@cat", cbocategory.SelectedValue), P("@stock", CInt(txtstock.Value)), P("@price", price), P("@id", productid))
-            If saved Then MsgBox("Product updated successfully!", MsgBoxStyle.Information, "Success")
+            If saved Then Toast.Notify("Product updated successfully!")
         End If
 
         If Not saved Then Exit Sub
@@ -147,7 +147,7 @@
 
         If MsgBox("Are you sure you want to delete this product?", MsgBoxStyle.Question + MsgBoxStyle.YesNo, "Confirm Delete") = MsgBoxResult.Yes Then
             If SetQuery("DELETE FROM product WHERE productid = @id", P("@id", productid)) Then
-                MsgBox("Product deleted successfully!", MsgBoxStyle.Information, "Success")
+                Toast.Notify("Product deleted successfully!")
                 fill()
                 clearfields()
                 disablebuttons()

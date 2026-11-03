@@ -82,24 +82,20 @@
         End If
 
         If adding Then
-            If MsgBox("Are you sure you want to add a new driver?", MsgBoxStyle.Question + MsgBoxStyle.YesNo, "Confirm") = MsgBoxResult.Yes Then
-                If SetQuery("INSERT INTO driver (name, license) VALUES (@name, @license)", P("@name", txtname.Text.Trim()), P("@license", txtlicense.Text.Trim())) Then
-                    fill()
-                    disablebuttons()
-                    clearfields()
-                    adding = False
-                    MsgBox("Driver added successfully!", MsgBoxStyle.Information, "Success")
-                End If
+            If SetQuery("INSERT INTO driver (name, license) VALUES (@name, @license)", P("@name", txtname.Text.Trim()), P("@license", txtlicense.Text.Trim())) Then
+                fill()
+                disablebuttons()
+                clearfields()
+                adding = False
+                Toast.Notify("Driver added successfully!")
             End If
         ElseIf updating Then
-            If MsgBox("Are you sure you want to update this driver?", MsgBoxStyle.Question + MsgBoxStyle.YesNo, "Confirm") = MsgBoxResult.Yes Then
-                If SetQuery("UPDATE driver SET name = @name, license = @license WHERE id = @id", P("@name", txtname.Text.Trim()), P("@license", txtlicense.Text.Trim()), P("@id", driverid)) Then
-                    fill()
-                    disablebuttons()
-                    clearfields()
-                    updating = False
-                    MsgBox("Driver updated successfully!", MsgBoxStyle.Information, "Success")
-                End If
+            If SetQuery("UPDATE driver SET name = @name, license = @license WHERE id = @id", P("@name", txtname.Text.Trim()), P("@license", txtlicense.Text.Trim()), P("@id", driverid)) Then
+                fill()
+                disablebuttons()
+                clearfields()
+                updating = False
+                Toast.Notify("Driver updated successfully!")
             End If
         End If
     End Sub
@@ -122,7 +118,7 @@
                 fill()
                 clearfields()
                 disablebuttons()
-                MsgBox("Driver deleted successfully!", MsgBoxStyle.Information, "Success")
+                Toast.Notify("Driver deleted successfully!")
             End If
         End If
     End Sub

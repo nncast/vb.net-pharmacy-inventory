@@ -161,7 +161,7 @@
                             P("@so", stockoutId), P("@p", productId), P("@q", quantity), P("@after", stockLeft(productId)))
                     Execute("UPDATE product SET stock = stock - @q WHERE productid = @p", P("@q", quantity), P("@p", productId))
                 Next
-                stockMessage = "Stockout recorded successfully for delivered order!"
+                stockMessage = "Its stock was taken out of inventory."
 
             ElseIf oldStatus = "Delivered" AndAlso newStatus <> "Delivered" Then
                 ReverseStockout(deliveryid)
@@ -175,8 +175,7 @@
             Exit Sub
         End Try
 
-        If stockMessage <> "" Then MsgBox(stockMessage, MsgBoxStyle.Information, "Stock Updated")
-        MsgBox("Delivery status updated successfully!", MsgBoxStyle.Information, "Success")
+        Toast.Notify("Delivery status updated." & If(stockMessage = "", "", " " & stockMessage))
         clearFields()
         fillDeliveryHistory()
     End Sub
@@ -269,7 +268,7 @@
             Exit Sub
         End Try
 
-        MsgBox("Driver assigned successfully!", MsgBoxStyle.Information, "Success")
+        Toast.Notify("Driver assigned successfully!")
 
         fillOrdersToDeliver()
         fillDeliveryHistory()
@@ -310,7 +309,7 @@
             Exit Sub
         End Try
 
-        MsgBox("Delivery deleted successfully! Order is now available for assignment again.", MsgBoxStyle.Information, "Success")
+        Toast.Notify("Delivery deleted successfully! Order is now available for assignment again.")
 
         fillDeliveryHistory()
         fillOrdersToDeliver()
