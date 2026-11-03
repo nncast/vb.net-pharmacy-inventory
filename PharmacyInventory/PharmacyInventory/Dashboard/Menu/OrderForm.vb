@@ -112,11 +112,7 @@
     End Sub
 
     Private Sub btnAddToCart_Click(sender As Object, e As EventArgs) Handles btnaddtocart.Click
-        If cmbcustomer.SelectedIndex = -1 Then
-            MsgBox("Please select a customer.", MsgBoxStyle.Information, "Validation Error")
-            Exit Sub
-        End If
-
+        ' The customer is checked when the order is saved, so items can go in first.
         If cmbproduct.SelectedIndex = -1 Then
             MsgBox("Please select a product.", MsgBoxStyle.Information, "Validation Error")
             Exit Sub
@@ -152,21 +148,22 @@
             Exit Sub
         End If
 
-        If MsgBox("Are you sure you want to add this item to the cart?", MsgBoxStyle.Question + MsgBoxStyle.YesNo, "Confirm") = MsgBoxResult.Yes Then
-            If existing IsNot Nothing Then
-                Dim existingPrice As Decimal = CDec(existing.SubItems(2).Text)
-                existing.SubItems(1).Text = newQuantity.ToString()
-                existing.SubItems(3).Text = (existingPrice * newQuantity).ToString("F2")
-            Else
-                Dim item = lvcart.Items.Add(productName)
-                item.SubItems.Add(quantity.ToString())
-                item.SubItems.Add(price.ToString("F2"))
-                item.SubItems.Add((price * quantity).ToString("F2"))
-                item.SubItems.Add(productId.ToString())
-            End If
-
-            UpdateTotal()
+        If existing IsNot Nothing Then
+            Dim existingPrice As Decimal = CDec(existing.SubItems(2).Text)
+            existing.SubItems(1).Text = newQuantity.ToString()
+            existing.SubItems(3).Text = (existingPrice * newQuantity).ToString("F2")
+        Else
+            Dim item = lvcart.Items.Add(productName)
+            item.SubItems.Add(quantity.ToString())
+            item.SubItems.Add(price.ToString("F2"))
+            item.SubItems.Add((price * quantity).ToString("F2"))
+            item.SubItems.Add(productId.ToString())
         End If
+
+        UpdateTotal()
+        ' Ready for the next product
+        cmbproduct.SelectedIndex = -1
+        cmbproduct.Focus()
     End Sub
 
     Private Sub UpdateTotal()
@@ -185,10 +182,24 @@
         End If
 
         ' Only the cart changes here; the order itself is updated when it is saved,
-        ' so Cancel still discards the removal.
-        If MsgBox("Are you sure you want to remove this item from the cart?", MsgBoxStyle.Question + MsgBoxStyle.YesNo, "Confirm") = MsgBoxResult.Yes Then
-            lvCart.Items.Remove(lvCart.SelectedItems(0))
-            UpdateTotal()
+        ' so Cancel still discards the removal and no confirmation is needed.
+        lvCart.Items.Remove(lvCart.SelectedItems(0))
+        UpdateTotal()
+    End Sub
+
+    ' Delete removes the selected cart line; Enter in the product or quantity box adds to the cart.
+    Private Sub lvcart_KeyDown(sender As Object, e As KeyEventArgs) Handles lvcart.KeyDown
+        If e.KeyCode = Keys.Delete AndAlso lvcart.SelectedItems.Count > 0 AndAlso pnlinput.Enabled Then
+            btnremovefromcart.PerformClick()
+            e.Handled = True
+        End If
+    End Sub
+
+    Private Sub AddOnEnter(sender As Object, e As KeyEventArgs) Handles cmbproduct.KeyDown, numquantity.KeyDown
+        If e.KeyCode = Keys.Enter Then
+            btnaddtocart.PerformClick()
+            e.Handled = True
+            e.SuppressKeyPress = True
         End If
     End Sub
 
@@ -208,8 +219,6 @@
         End If
 
         Dim customerId = CInt(cmbcustomer.SelectedValue)
-        Dim question As String = If(adding, "Are you sure you want to add a new order?", "Are you sure you want to update this order?")
-        If MsgBox(question, MsgBoxStyle.Question + MsgBoxStyle.YesNo, "Confirm") <> MsgBoxResult.Yes Then Exit Sub
 
         Dim wasAdding As Boolean = adding
         Try
@@ -233,7 +242,7 @@
             Exit Sub
         End Try
 
-        MsgBox(If(wasAdding, "Order added successfully!", "Order updated successfully!"), MsgBoxStyle.Information, "Success")
+        Toast.Notify(If(wasAdding, "Order added successfully!", "Order updated successfully!"))
 
         lbltotal.Text = "00.00"
         fillOrderHistory()
@@ -255,7 +264,8 @@
             message = "Are you sure you want to cancel? All unsaved changes will be lost."
         End If
 
-        If MsgBox(message, MsgBoxStyle.Question + MsgBoxStyle.YesNo, "Confirm Cancel") = MsgBoxResult.Yes Then
+        ' Ask only when there is something to lose
+        If lvcart.Items.Count = 0 OrElse MsgBox(message, MsgBoxStyle.Question + MsgBoxStyle.YesNo, "Confirm Cancel") = MsgBoxResult.Yes Then
             clearfields()
             disablebuttons()
             pnlinput.Enabled = False
@@ -317,6 +327,8 @@
             Dim selectedProduct = cmbproduct.SelectedItem
             Dim stock = CInt(selectedProduct("stock"))
             numquantity.Maximum = Math.Max(0, stock)
+            ' Most items are sold one at a time, so start at 1 instead of 0
+            If numquantity.Value = 0 AndAlso stock > 0 Then numquantity.Value = 1
         Else
             numquantity.Maximum = 0
         End If
@@ -385,7 +397,7 @@
                 Exit Sub
             End Try
 
-            MsgBox("Order deleted successfully!", MsgBoxStyle.Information, "Success")
+            Toast.Notify("Order deleted successfully!")
 
             fillOrderHistory()
             clearfields()

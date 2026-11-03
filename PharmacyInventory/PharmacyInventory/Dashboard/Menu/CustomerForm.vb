@@ -84,23 +84,19 @@
         End If
 
         If adding Then
-            If MsgBox("Are you sure you want to add a new customer?", MsgBoxStyle.Question + MsgBoxStyle.YesNo, "Confirm") = MsgBoxResult.Yes Then
-                If SetQuery("INSERT INTO customer (name, contact, address) VALUES (@name, @contact, @address)",
-                            P("@name", txtcustomername.Text.Trim()), P("@contact", txtcontact.Text.Trim()), P("@address", txtaddress.Text.Trim())) Then
-                    MsgBox("Customer added successfully!", MsgBoxStyle.Information, "Success")
-                    adding = False
-                    refreshForm()
-                End If
+            If SetQuery("INSERT INTO customer (name, contact, address) VALUES (@name, @contact, @address)",
+                        P("@name", txtcustomername.Text.Trim()), P("@contact", txtcontact.Text.Trim()), P("@address", txtaddress.Text.Trim())) Then
+                Toast.Notify("Customer added successfully!")
+                adding = False
+                refreshForm()
             End If
 
         ElseIf updating Then
-            If MsgBox("Are you sure you want to update this customer?", MsgBoxStyle.Question + MsgBoxStyle.YesNo, "Confirm") = MsgBoxResult.Yes Then
-                If SetQuery("UPDATE customer SET name = @name, contact = @contact, address = @address WHERE id = @id",
-                            P("@name", txtcustomername.Text.Trim()), P("@contact", txtcontact.Text.Trim()), P("@address", txtaddress.Text.Trim()), P("@id", customerid)) Then
-                    MsgBox("Customer updated successfully!", MsgBoxStyle.Information, "Success")
-                    updating = False
-                    refreshForm()
-                End If
+            If SetQuery("UPDATE customer SET name = @name, contact = @contact, address = @address WHERE id = @id",
+                        P("@name", txtcustomername.Text.Trim()), P("@contact", txtcontact.Text.Trim()), P("@address", txtaddress.Text.Trim()), P("@id", customerid)) Then
+                Toast.Notify("Customer updated successfully!")
+                updating = False
+                refreshForm()
             End If
         End If
     End Sub
@@ -120,7 +116,7 @@
 
         If MsgBox("Are you sure you want to delete this customer?", MsgBoxStyle.Question + MsgBoxStyle.YesNo, "Confirm Delete") = MsgBoxResult.Yes Then
             If SetQuery("DELETE FROM customer WHERE id = @id", P("@id", customerid)) Then
-                MsgBox("Customer deleted successfully!", MsgBoxStyle.Information, "Success")
+                Toast.Notify("Customer deleted successfully!")
                 refreshForm()
             End If
         End If
