@@ -21,7 +21,7 @@
 
 **Pharmease Medical Store** is a desktop-based inventory management system developed in **VB.NET** for pharmacies and medical suppliers. It enables real-time tracking of inventory levels, supply movement, and delivery logistics, including driver dispatch and delivery records.
 
-> **Current version: v0.2.1** — the program's file properties now show its real version instead of 1.0.0.0. Built on v0.2.0: fewer clicks. Save just saves, with no "Are you sure?" first, and a short notice that fades on its own replaces the "…successfully!" box you had to click away. Deleting, logging out and cancelling unsaved work still ask. Orders: the quantity starts at 1, Enter adds the product to the cart, the same product again adds to its line, Delete removes a cart line without asking, and items can go in before the customer is picked. Built on v0.1.3: true stock-out levels, fresh Stock In lists, delivery fixes. Built on v0.1.2: documentation update; the app is unchanged from v0.1.1, the bug-fix and security release: stock now moves correctly for orders, deliveries and stock-ins, every query is parameterized, the connection settings live in a config file, and there is a ready-to-run Windows build. See [Releases](https://github.com/nncast/vb.net-pharmacy-inventory/releases) for the release notes.
+> **Current version: v0.2.1** — fewer clicks: Save just saves, and a notice that fades on its own replaces the "…successfully!" box, and orders are faster to enter. See [Releases](https://github.com/nncast/vb.net-pharmacy-inventory/releases) for what changed in each version.
 
 <p align="center">
   <img src="assets/screenshots/home.png" width="400" alt="Home dashboard"/>
